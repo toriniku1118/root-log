@@ -10,6 +10,34 @@ Map<PlantField, String> validate(PlantInput input) => validatePlantInput(input, 
 String chars(int n, [String c = 'あ']) => List.filled(n, c).join();
 
 void main() {
+  group('ジャンル(複数選択。1〜3個。実生は選べない)', () {
+    test('1個・3個は通る', () {
+      expect(validate(const PlantInput(name: 'x', genres: {PlantGenre.aroid})), isEmpty);
+      expect(
+        validate(const PlantInput(name: 'x', genres: {PlantGenre.caudex, PlantGenre.succulentCactus, PlantGenre.rare})),
+        isEmpty,
+      );
+    });
+    test('0個はエラー', () {
+      final errors = validate(const PlantInput(name: 'x', genres: {}));
+      expect(errors.keys, [PlantField.genres]);
+      expect(errors[PlantField.genres], 'ジャンルを1つ以上選んでください');
+    });
+    test('4個はエラー', () {
+      final errors = validate(const PlantInput(
+        name: 'x',
+        genres: {PlantGenre.caudex, PlantGenre.agave, PlantGenre.aroid, PlantGenre.rare},
+      ));
+      expect(errors.keys, [PlantField.genres]);
+      expect(errors[PlantField.genres], 'ジャンルは3つまで選べます');
+    });
+    test('実生はジャンルに選べない(タグで表す)', () {
+      final errors = validate(const PlantInput(name: 'x', genres: {PlantGenre.seedling}));
+      expect(errors.keys, [PlantField.genres]);
+      expect(errors[PlantField.genres], 'ジャンルに実生は選べません(実生はタグで選んでください)');
+    });
+  });
+
   group('購入価格(任意・円の整数。0〜99,999,999)', () {
     test('未設定(null)・0・上限ちょうどは通る', () {
       expect(validate(const PlantInput(name: 'x')), isEmpty);
@@ -96,8 +124,8 @@ void main() {
       expect(v.source, isNull);
       expect(v.tags, {PlantTag.rescue});
     });
-    test('初期ジャンルは観葉植物全般', () {
-      expect(const PlantInput().genre, PlantGenre.foliage);
+    test('初期ジャンルは観葉植物全般(選択済み)', () {
+      expect(const PlantInput().genres, {PlantGenre.foliage});
     });
     test('複数のエラーはまとめて返す', () {
       final errors = validate(PlantInput(name: '', variety: chars(81), acquiredAt: DateTime(2027, 1, 1)));

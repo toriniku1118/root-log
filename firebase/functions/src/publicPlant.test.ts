@@ -7,7 +7,7 @@ import { buildPublicPlantDoc, type PublicScope } from './publicPlant.js';
 /** 本人の株のドキュメント(非公開の項目をすべて含む) */
 const privatePlant = {
   name: 'パキプス 1号',
-  genre: 'caudex',
+  genres: ['caudex', 'rare'],
   variety: 'Operculicarya pachypus',
   source: '〇〇植物店',
   locationName: '南の窓辺',
@@ -45,6 +45,12 @@ describe('公開用データに、非公開の項目が出ない', () => {
       assert.ok(!text.includes('南の窓辺'), '置き場所の値が含まれている');
     });
   }
+
+  it('ジャンル(genres)は公開できる項目として出る(旧項目 genre は出ない)', () => {
+    const doc = build('photos');
+    assert.deepEqual(doc.genres, ['caudex', 'rare']);
+    assert.ok(!('genre' in doc));
+  });
 
   it('株のドキュメントに知らない項目が増えても、公開用データには出ない(項目を名指しで選んでいる)', () => {
     const doc = build('source', { ...privatePlant, memo: '盗まれたら困る', newPrivateField: 123 });

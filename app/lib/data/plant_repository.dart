@@ -77,7 +77,7 @@ class InMemoryPlantRepository implements PlantRepository {
     final plant = Plant(
       id: id,
       name: v.name,
-      genre: v.genre,
+      genres: v.genres,
       variety: v.variety,
       acquiredAt: v.acquiredAt,
       source: v.source,
@@ -104,7 +104,7 @@ class InMemoryPlantRepository implements PlantRepository {
     final plant = Plant(
       id: id,
       name: v.name,
-      genre: v.genre,
+      genres: v.genres,
       variety: v.variety,
       acquiredAt: v.acquiredAt,
       source: v.source,

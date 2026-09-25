@@ -9,17 +9,21 @@ abstract final class PlantLimits {
   static const locationName = 30;
   static const potSize = 10;
 
+  /// 株のジャンルは、1〜3個(複数選択)。
+  static const genresMin = 1;
+  static const genresMax = 3;
+
   /// 購入価格(円)の上限。下限は0。
   static const purchasePrice = 99999999;
 }
 
-enum PlantField { name, variety, acquiredAt, source, locationName, potSize, purchasePrice }
+enum PlantField { name, genres, variety, acquiredAt, source, locationName, potSize, purchasePrice }
 
 /// 株の入力(画面のフォームの値)。文字は前後の空白を取り除き、空欄は「未設定」(null)にして扱う。
 class PlantInput {
   const PlantInput({
     this.name = '',
-    this.genre = defaultPlantGenre,
+    this.genres = const {defaultPlantGenre},
     this.variety,
     this.acquiredAt,
     this.source,
@@ -30,7 +34,9 @@ class PlantInput {
   });
 
   final String name;
-  final PlantGenre genre;
+
+  /// ジャンル(1〜3個)。初期は観葉植物全般。実生は選べない(タグで表す)。
+  final Set<PlantGenre> genres;
   final String? variety;
   final DateTime? acquiredAt;
   final String? source;
@@ -43,7 +49,7 @@ class PlantInput {
 
   PlantInput normalized() => PlantInput(
         name: name.trim(),
-        genre: genre,
+        genres: Set.unmodifiable(genres),
         variety: _clean(variety),
         acquiredAt: acquiredAt,
         source: _clean(source),
@@ -73,6 +79,13 @@ Map<PlantField, String> validatePlantInput(PlantInput input, {required DateTime 
     errors[PlantField.name] = '名前を入力してください';
   } else if (_length(v.name) > PlantLimits.name) {
     errors[PlantField.name] = '名前は${PlantLimits.name}文字以内で入力してください';
+  }
+  if (v.genres.length < PlantLimits.genresMin) {
+    errors[PlantField.genres] = 'ジャンルを${PlantLimits.genresMin}つ以上選んでください';
+  } else if (v.genres.length > PlantLimits.genresMax) {
+    errors[PlantField.genres] = 'ジャンルは${PlantLimits.genresMax}つまで選べます';
+  } else if (v.genres.any((g) => !PlantGenre.plantChoices.contains(g))) {
+    errors[PlantField.genres] = 'ジャンルに実生は選べません(実生はタグで選んでください)';
   }
   _checkMax(errors, PlantField.variety, '品種', v.variety, PlantLimits.variety);
   _checkMax(errors, PlantField.source, '入手先', v.source, PlantLimits.source);

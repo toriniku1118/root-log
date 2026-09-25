@@ -122,7 +122,8 @@ class _PlantTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final variety = plant.variety;
-    final subtitle = variety == null ? plant.genre.label : '${plant.genre.label}・$variety';
+    final genreLabel = plant.genres.map((g) => g.label).join('・');
+    final subtitle = variety == null ? genreLabel : '$genreLabel・$variety';
     final tags = plant.tags.toList()..sort((a, b) => a.index.compareTo(b.index));
     return Card(
       margin: const EdgeInsets.only(bottom: 8),

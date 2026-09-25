@@ -28,7 +28,7 @@ class Plant {
   const Plant({
     required this.id,
     required this.name,
-    required this.genre,
+    required this.genres,
     required this.tags,
     required this.visibility,
     required this.createdAt,
@@ -44,7 +44,9 @@ class Plant {
 
   final String id;
   final String name;
-  final PlantGenre genre;
+
+  /// ジャンル(1〜3個。傾向の整理に使う)。実生はジャンルではなくタグで表す。
+  final Set<PlantGenre> genres;
   final String? variety;
   final DateTime? acquiredAt;
 
