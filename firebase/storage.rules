@@ -11,6 +11,7 @@ service firebase.storage {
 
     match /uploads/{uid}/{uploadId} {
       allow create: if request.auth != null
+        && resource == null
         && request.auth.uid == uid
         && request.resource.size > 0
         && request.resource.size < 15 * 1024 * 1024
