@@ -23,6 +23,7 @@ import { logger } from 'firebase-functions';
 import sharp from 'sharp';
 import exifReader from 'exif-reader';
 import { cleanImage } from './image.js';
+import { buildPublicPlantDoc, type PublicScope } from './publicPlant.js';
 import { createHash, randomUUID } from 'node:crypto';
 
 initializeApp();
@@ -268,7 +269,7 @@ async function syncPublicPlant(uid: string, plantId: string): Promise<void> {
     return;
   }
 
-  const scope = plant.get('visibility.scope') as 'photos' | 'history' | 'source';
+  const scope = plant.get('visibility.scope') as PublicScope;
 
   // 公開用の写真を書き出す(処理済み=メタデータ削除済みの画像のみ)
   const publicPhotos = [];
@@ -279,25 +280,27 @@ async function syncPublicPlant(uid: string, plantId: string): Promise<void> {
     publicPhotos.push({ path: dest, receivedAt: p.get('receivedAt'), provenance: p.get('provenance') === true });
   }
 
-  const doc: Record<string, unknown> = {
-    ownerUid: uid,
-    plantId,
-    name: plant.get('name'),
-    genre: plant.get('genre'),
-    variety: plant.get('variety') ?? null,
-    tags: plant.get('tags') ?? [],
-    hasProvenance: plant.get('hasProvenance') === true,
-    photos: publicPhotos,
-    updatedAt: FieldValue.serverTimestamp(),
-  };
+  let logSources: { type?: unknown; occurredAt?: unknown; stage?: unknown }[] = [];
+  let deletedPhotoCount = 0;
   if (scope === 'history' || scope === 'source') {
     const logs = await plantRef.collection('logs').orderBy('occurredAt').get();
-    doc.logs = logs.docs.map((l) => ({ type: l.get('type'), occurredAt: l.get('occurredAt'), stage: l.get('stage') ?? null }));
+    logSources = logs.docs.map((l) => ({ type: l.get('type'), occurredAt: l.get('occurredAt'), stage: l.get('stage') }));
     const sys = await plantRef.collection('systemLogs').where('type', '==', 'photo_deleted').get();
-    doc.deletedPhotoCount = sys.size;
+    deletedPhotoCount = sys.size;
   }
-  if (scope === 'source') doc.source = plant.get('source') ?? null; // 入手先は本人が選んだ場合だけ
-  // 置き場所・メモ・鉢の号数などは公開しない
+  // 公開する項目は buildPublicPlantDoc だけで決める(置き場所・メモ・鉢の号数・購入価格・健康状態は公開しない)
+  const doc: Record<string, unknown> = {
+    ...buildPublicPlantDoc({
+      ownerUid: uid,
+      plantId,
+      plant: plant.data() ?? {},
+      scope,
+      photos: publicPhotos,
+      logs: logSources,
+      deletedPhotoCount,
+    }),
+    updatedAt: FieldValue.serverTimestamp(),
+  };
 
   const stillPublic = await db.runTransaction(async (tx) => {
     const latest = await tx.get(plantRef);

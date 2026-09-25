@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rootlog/data/plant_repository.dart';
 import 'package:rootlog/domain/plant.dart';
 import 'package:rootlog/domain/plant_genre.dart';
+import 'package:rootlog/domain/plant_health.dart';
 import 'package:rootlog/domain/plant_input.dart';
 import 'package:rootlog/domain/plant_tag.dart';
 
@@ -36,6 +37,36 @@ void main() {
     expect(plant.visibility.scope, PlantScope.photos);
     expect(plant.createdAt, clockNow);
     expect(plant.updatedAt, clockNow);
+  });
+
+  test('購入価格は保存され、更新で変えられる。未設定は null のまま', () async {
+    final none = await repo.add(const PlantInput(name: 'a'));
+    expect(none.purchasePrice, isNull);
+    final priced = await repo.add(const PlantInput(name: 'b', purchasePrice: 12800));
+    expect(priced.purchasePrice, 12800);
+    final updated = await repo.update(priced.id, const PlantInput(name: 'b', purchasePrice: 15000));
+    expect(updated.purchasePrice, 15000);
+    final cleared = await repo.update(priced.id, const PlantInput(name: 'b'));
+    expect(cleared.purchasePrice, isNull);
+  });
+
+  test('購入価格が範囲外の入力は追加できない', () async {
+    await expectLater(
+      repo.add(const PlantInput(name: 'x', purchasePrice: -1)),
+      throwsA(isA<PlantValidationException>()),
+    );
+    await expectLater(
+      repo.add(const PlantInput(name: 'x', purchasePrice: PlantLimits.purchasePrice + 1)),
+      throwsA(isA<PlantValidationException>()),
+    );
+    expect(await repo.watchAll().first, isEmpty);
+  });
+
+  test('新しい株の健康状態は「初期」。更新しても健康状態は変わらない', () async {
+    final plant = await repo.add(const PlantInput(name: 'a'));
+    expect(plant.health, PlantHealth.initial);
+    final updated = await repo.update(plant.id, const PlantInput(name: 'a2'));
+    expect(updated.health, PlantHealth.initial);
   });
 
   test('条件を満たさない入力は追加できず、1件も増えない', () async {

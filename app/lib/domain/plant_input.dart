@@ -8,9 +8,12 @@ abstract final class PlantLimits {
   static const source = 100;
   static const locationName = 30;
   static const potSize = 10;
+
+  /// 購入価格(円)の上限。下限は0。
+  static const purchasePrice = 99999999;
 }
 
-enum PlantField { name, variety, acquiredAt, source, locationName, potSize }
+enum PlantField { name, variety, acquiredAt, source, locationName, potSize, purchasePrice }
 
 /// 株の入力(画面のフォームの値)。文字は前後の空白を取り除き、空欄は「未設定」(null)にして扱う。
 class PlantInput {
@@ -22,6 +25,7 @@ class PlantInput {
     this.source,
     this.locationName,
     this.potSize,
+    this.purchasePrice,
     this.tags = const {},
   });
 
@@ -32,6 +36,9 @@ class PlantInput {
   final String? source;
   final String? locationName;
   final String? potSize;
+
+  /// 購入価格(円)。任意。
+  final int? purchasePrice;
   final Set<PlantTag> tags;
 
   PlantInput normalized() => PlantInput(
@@ -42,6 +49,7 @@ class PlantInput {
         source: _clean(source),
         locationName: _clean(locationName),
         potSize: _clean(potSize),
+        purchasePrice: purchasePrice,
         tags: Set.unmodifiable(tags),
       );
 
@@ -71,6 +79,13 @@ Map<PlantField, String> validatePlantInput(PlantInput input, {required DateTime 
   _checkMax(errors, PlantField.locationName, '置き場所', v.locationName, PlantLimits.locationName);
   _checkMax(errors, PlantField.potSize, '鉢の号数', v.potSize, PlantLimits.potSize);
 
+  final price = v.purchasePrice;
+  if (price != null && price < 0) {
+    errors[PlantField.purchasePrice] = '購入価格は0以上の整数で入力してください';
+  } else if (price != null && price > PlantLimits.purchasePrice) {
+    errors[PlantField.purchasePrice] = '購入価格は${_withCommas(PlantLimits.purchasePrice)}円以下で入力してください';
+  }
+
   final acquiredAt = v.acquiredAt;
   if (acquiredAt != null && _dateOnly(acquiredAt).isAfter(_dateOnly(now))) {
     errors[PlantField.acquiredAt] = '入手日は今日以前の日付を選んでください';
@@ -85,6 +100,9 @@ void _checkMax(Map<PlantField, String> errors, PlantField field, String label, S
 }
 
 int _length(String s) => s.length;
+
+/// 3桁ごとにカンマを入れる(例:99999999 → 99,999,999)。
+String _withCommas(int n) => n.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => ',');
 
 DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
