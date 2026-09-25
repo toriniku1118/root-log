@@ -70,6 +70,8 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 | `source` | `source` | 文字列、〜100 | 任意。入手先(非公開。「入手先まで」を公開したときだけ公開用に出る) |
 | `locationName` | `locationName` | 文字列、〜30 | 任意。名前だけ。住所は持たない |
 | `potSize` | `potSize` | 文字列、〜10 | 任意 |
+| `purchasePrice` | `purchasePrice` | 整数(円)、0〜99,999,999、または `null` | 任意。**非公開。公開用データには出さない**(内部設計 3.5)。2026-09-26 に追加(未実装) |
+| `health` | `health` | `initial` `good` `watch` `bad` `recovering` のどれか | 任意(未設定は `initial` として扱う)。作成時はアプリが `initial` で書く。2026-09-26 に追加(未実装) |
 | `tags` | `tags` | `rescue` / `seedling` の配列、10個まで | 必須 |
 | `visibility` | `visibility.public`、`visibility.scope` | 真偽値、`photos` / `history` / `source` | 必須。作成時は `public: false`、`scope: photos` |
 | `createdAt` / `updatedAt` | `createdAt` / `updatedAt` | サーバー時刻 | 必須。ルールが `request.time` と一致を要求する |
@@ -78,7 +80,7 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 ### 3.3 これから追加するデータ
 | データ | 保存先 | 内容 | 状態 |
 |---|---|---|---|
-| 記録 `PlantLog` | `…/logs/{logId}` | `type`(`water` `repot` `fertilize` `prune` `note` `stage`)、`occurredAt`(今日以前)、`recordedAt`(サーバー時刻)、`note`(〜500)、`stage`(`acquired` `rooted` `new_leaf` `repotted` `flowered` `divided` `recovered` `died`) | ルールは済み。アプリは未 |
+| 記録 `PlantLog` | `…/logs/{logId}` | `type`(`water` `repot` `fertilize` `prune` `note` `stage` `health`)、`occurredAt`(今日以前)、`recordedAt`(サーバー時刻)、`note`(〜500)、`stage`(`acquired` `rooted` `new_leaf` `repotted` `flowered` `divided` `recovered` `died`) | ルールは済み。アプリは未 |
 | 写真 `PlantPhoto` | `…/photos/{photoId}` | 保存先、サイズ、撮影元、受信時刻(`receivedAt`)、来歴かどうか(`provenance`)と理由(`provenanceReason`)など | サーバーが作る。アプリは読むだけ |
 | ユーザー `UserProfile` | `users/{uid}` | 表示名(1〜30、必須)、年齢区分、好きなジャンル(9個まで)、都道府県(コード `01`〜`47` または空)、通知設定(`notify`) | ルールは済み。アプリは未 |
 
@@ -87,6 +89,25 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 - **初期値はすべてオフ**(2026-09-26 の決定)。ルールは `notify` の存在を必須にしているので、ユーザー情報を作るとき、アプリがすべて `false` で書く。
 - ステップ1で使うのは `photo` と `water` だけ。ほかの種類は、それぞれのステップで使う。
 - 撮影通知の頻度・時間、株ごとの水やり通知のオン/オフは、`notify` に入れる場所がない。**保存先は未決**(`requirements.md` 6章 Q3)。決めたら、権限ルールを変え、「見えてはいけないものが見えない」テストを追加する(REQ-044)。
+
+### 3.5 健康状態と購入価格(2026-09-26 に追加。未実装)
+**健康状態(REQ-048)**
+| 値(`health`) | 表示 | 意味 |
+|---|---|---|
+| `initial` | 初期(名前は仮。要件 Q13) | 登録直後で、まだ状態を決めていない |
+| `good` | 元気 | — |
+| `watch` | 要観察 | 気になる点がある |
+| `bad` | 不調 | 弱っている・病気・害虫など |
+| `recovering` | 復活中 | 不調から回復している |
+- **変更の保存**:株の `health` を更新し、同時に記録(`type: health`、`health` に新しい値、`occurredAt`、任意の `note`)を1件追加する。2つは同時に成功するか、同時に失敗する(書き込みのまとめ=バッチ)。株の更新は `updatedAt == request.time`、記録は `recordedAt == request.time`(既存のルール)を満たす。
+- **履歴でたどる**:株ごとの履歴(REQ-025)は、記録(`logs`)を時系列に出す。健康状態の変更は、上書きではなく記録として残るので、いつ・どう変わったかをたどれる。
+- **段階との違い**:段階(`stage`)は節目の記録、健康状態(`health`)はいまの状態。別の項目として持つ。
+- **ルールの変更(実装時)**:`plantKeys()` に `health` と `purchasePrice` を足す。`validPlantFields()` に、`health` は5値のどれか(任意)、`purchasePrice` は整数で 0 以上 99,999,999 以下、または `null`(任意)、を足す。記録は、`onlyKeys` に `health` を足し、`type` に `health` を足し、`type == 'health'` のときは `health` が5値のどれか(必須)、それ以外の種類では `health` を付けられない、とする。
+- **アプリの変更(実装時)**:`Plant` に `purchasePrice`(整数、任意)と `health` を足し、`PlantLimits` に `purchasePrice = 99999999`、`PlantHealth`(5値、表示名つき)を足す。`validatePlantInput`・`validatePlantLog` に条件を足す。`test/domain/plant_rules_consistency_test.dart` が、ルールの文字列と一致を見張る対象に、`health` の値と `purchasePrice` の上限を加える。
+
+**購入価格(REQ-047)**
+- 盗難の標的になりうる情報。**公開用データ(`publicPlants`)にも、公開の範囲にも含めない**。`onPlantWritten` の書き出し項目は決まっており、価格は入れない(内部設計 6章)。
+- 健康状態を公開の範囲に含めるかは未決(要件 Q12)。ステップ1では公開用データに出さない。
 
 ## 4. 保存先の差し替え(メモリ → Firestore)
 
@@ -120,6 +141,8 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 | 入手先 | 任意、〜100文字 | `source = 100` | `optStr('source', 100)` |
 | 置き場所 | 任意、〜30文字 | `locationName = 30` | `optStr('locationName', 30)` |
 | 鉢の号数 | 任意、〜10文字 | `potSize = 10` | `optStr('potSize', 10)` |
+| 購入価格 | 任意、0〜99,999,999の整数(円) | `purchasePrice = 99999999` | `data().purchasePrice is int && >= 0 && <= 99999999`(または `null`) |
+| 健康状態 | 任意、5値のどれか | `PlantHealth` の id | `data().health in ['initial','good','watch','bad','recovering']` |
 | 入手日 | 任意、今日以前 | — | 型(タイムスタンプ)だけ。「今日以前」はアプリだけで検証 |
 | ジャンル | 9種類のどれか | `PlantGenre` の id | `genres()` |
 | タグ | `rescue` / `seedling` | `PlantTag` の id | `tags.hasOnly([...])` |
@@ -178,6 +201,7 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 
 - 来歴の判定の定数(`firebase/functions/src/index.ts`):撮影時刻と受信時刻の差は10分以内(`PROVENANCE_MAX_DELAY_MS`)。タイムゾーン情報がない場合は1時間単位のずれ(-14〜+14時間)を許容する。画質は無料 `FREE_LONG_EDGE = 1600`、有料 `PREMIUM_LONG_EDGE = 3000`(`plan == 'premium'` のとき)。
 - 来歴の理由(`provenanceReason`):`ok` `gallery` `no_capture_time` `capture_time_mismatch` `duplicate`。
+- 購入価格は、公開用データに書き出さない(書き出す項目は決まっており、価格は入れない)。健康状態を公開に含めるかは未決(要件 Q12)。テストは `test-plan.md` 8章。
 - 限界(設計0の1.4):撮影元と撮影時刻は端末側の情報で、改造したアプリなら偽装できる。確実なのはサーバーの受信時刻だけ。別の株を撮って来歴にすることも防げない。画面は「この日時までに撮影された写真」と表示する。
 
 ## 11. 実装の現状との突き合わせ(2026-09-26)
@@ -203,3 +227,4 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 | 16 | 根底(交流と交換) | ステップ1には交流・交換の機能がない | 要件 0章・Q9(相談Q&Aをステップ2へ前倒しで一部解決) |
 | 17 | 後回しにした機能(ゴースト表示・タイムラプス・巡回モード) | データ・保存先・権限ルールへの影響はない(写真は受信時刻の順で取れる)。ホームの「巡回する」ボタンは出さない | 要件 REQ-014・026・027(後回し) |
 | 18 | 写真のダウンロード | 新しい保存先・ルール・サーバー処理は要らない(`photos/` を本人が読める。アプリが1枚ずつ保存)。端末の写真フォルダへの保存は実機で確認 | 要件 REQ-046・Q11(決定済み) |
+| 19 | 健康状態・購入価格(ステップ1に追加) | 権限ルール・アプリの `Plant`・検証・テストに、まだない | 要件 REQ-047・048、内部設計 3.5。開発の issue で実装(#17 の前) |
