@@ -29,7 +29,7 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 | `data/plant_repository.dart` | `PlantRepository`(差し替え口)、`InMemoryPlantRepository`、`generatePlantId`、`PlantNotFoundException` | 株の保存・取得。今はメモリ上 |
 | `providers.dart` | `plantRepositoryProvider`、`plantsProvider` | 保存先の提供と、一覧の購読 |
 | `features/home/` | `HomeScreen`、`groupPlantsByLocation` | ホーム(SCR-04)と、置き場所ごとのまとめ |
-| `features/plants/` | `AddPlantScreen`(仮) | 株を追加する画面(SCR-05。#17 で作る) |
+| `features/plants/` | `AddPlantScreen` | 株を追加する画面(SCR-05。追加は実装済み=#17。編集・削除は未) |
 
 - 新しい機能(記録・写真・設定・通知)も、同じ形で足す:`domain/` に形と検証、`data/` に差し替え口と実装、`features/` に画面、`providers.dart` で結ぶ。
 - 画面は、保存先が返す例外([6章](#6-エラー処理))を、日本語のメッセージにして出す。
@@ -216,7 +216,7 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 | 3 | 文字数の上限(名前50・品種80・入手先100・置き場所30・号数10) | 一致(`PlantLimits` とルール) | なし |
 | 4 | 新規作成は初期公開でもよい(ルールは公開の初期値を強制しない。書き出しの安全策は `publishAckAt`)、来歴の印はアプリから持たない | 一致 | なし |
 | 5 | ホームの機能 | 一覧・置き場所のまとめ・0件の案内・「株を追加」まで。設定への入口(「巡回する」は後回し)・最新写真・前回の撮影からの日数・来歴の印は未 | 外部設計 3.5 に「現状」として明記。要件 REQ-005 は「一部」 |
-| 6 | 株を追加する画面 | 「準備中」の仮(#17 で作る) | 外部設計 SCR-05 に明記 |
+| 6 | 株を追加する画面 | 追加の入力・検証・保存まで実装済み(#17)。編集・削除・撮影への遷移は未 | 外部設計 SCR-05 の「現状」に明記 |
 | 7 | 配色の指定 | `app.dart` で `colorSchemeSeed: Colors.green` とダークテーマを指定。開発ルールは「テーマは既定のまま」 | 見た目を作り込む段階(別の作業)で扱う。今は変えない。ワイヤーフレーム方針とのずれとして記録 |
 | 8 | `users.displayName`(必須)を入力する画面 | 設計0の画面一覧にない | 未決 Q1 |
 | 9 | `users.prefecture` を入力する画面 | 設計0の画面一覧にない(空でも保存できる) | 未決 Q2 |

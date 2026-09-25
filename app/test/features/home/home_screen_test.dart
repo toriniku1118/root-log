@@ -37,7 +37,7 @@ void main() {
     await tester.tap(find.text('最初の株を追加'));
     await tester.pumpAndSettle();
     expect(find.text('株を追加'), findsOneWidget); // 画面のタイトル
-    expect(find.text('準備中'), findsOneWidget);
+    expect(find.byKey(const Key('field-name')), findsOneWidget); // 入力フォームが出る
   });
 
   testWidgets('置き場所ごとに見出しが出て、置き場所は名前順・未設定は最後', (tester) async {
@@ -69,7 +69,7 @@ void main() {
     await pumpApp(tester, plants: const [PlantInput(name: 'パキラ')]);
     await tester.tap(find.text('株を追加'));
     await tester.pumpAndSettle();
-    expect(find.text('準備中'), findsOneWidget);
+    expect(find.byKey(const Key('field-name')), findsOneWidget); // 入力フォームが出る
     await tester.tap(find.byTooltip('戻る'));
     await tester.pumpAndSettle();
     expect(find.text('パキラ'), findsOneWidget);
