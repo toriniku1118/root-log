@@ -2,7 +2,7 @@
 // 「見えてはいけないものが見えない」= 購入価格・健康状態・置き場所などが、公開用データに出ないことを確認する。
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPublicPlantDoc, type PublicScope } from './publicPlant.js';
+import { buildPublicPlantDoc, hasPublishAck, type PublicScope } from './publicPlant.js';
 
 /** 本人の株のドキュメント(非公開の項目をすべて含む) */
 const privatePlant = {
@@ -84,5 +84,20 @@ describe('健康状態の変更の記録は、公開しない(要件 Q12)', () =
       doc.logs.map((l) => l.type),
       ['water', 'stage'],
     );
+  });
+});
+
+describe('公開の説明の確認(初期公開の安全策。REQ-049)', () => {
+  it('確認日時がなければ、書き出してはいけない', () => {
+    assert.equal(hasPublishAck({ displayName: 'アリス' }), false);
+  });
+  it('確認日時が null でも、書き出してはいけない', () => {
+    assert.equal(hasPublishAck({ publishAckAt: null }), false);
+  });
+  it('ユーザー情報がなければ、書き出してはいけない', () => {
+    assert.equal(hasPublishAck(undefined), false);
+  });
+  it('確認日時があれば、書き出してよい', () => {
+    assert.equal(hasPublishAck({ publishAckAt: new Date('2026-09-26') }), true);
   });
 });

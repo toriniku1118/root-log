@@ -12,7 +12,7 @@ abstract interface class PlantRepository {
   /// 株の一覧。購読した時点の内容がすぐ流れ、変更のたびに新しい一覧が流れる。
   Stream<List<Plant>> watchAll();
 
-  /// 株を追加する。新しい株は必ず非公開。条件を満たさない入力は [PlantValidationException]。
+  /// 株を追加する。新しい株は初期公開(範囲は写真のみ)。条件を満たさない入力は [PlantValidationException]。
   Future<Plant> add(PlantInput input);
 
   /// 株を更新する(共有設定・作成日時は変えない)。存在しなければ [PlantNotFoundException]。
@@ -86,7 +86,7 @@ class InMemoryPlantRepository implements PlantRepository {
       purchasePrice: v.purchasePrice,
       health: defaultPlantHealth,
       tags: v.tags,
-      visibility: const PlantVisibility.privateDefault(),
+      visibility: const PlantVisibility.defaultVisibility(),
       createdAt: now,
       updatedAt: now,
     );

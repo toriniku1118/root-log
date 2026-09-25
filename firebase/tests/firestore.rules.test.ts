@@ -128,6 +128,55 @@ describe('users(非公開の本人データ)', () => {
   it('通知設定にオン/オフ以外の値を入れられない', async () => {
     await assertFails(setDoc(doc(as(BOB), 'users', BOB), { ...validUser(), notify: { photo: 'x'.repeat(1000) } }));
   });
+  // ---- 公開の説明を確認した日時(publishAckAt。REQ-049) ----
+  it('ユーザー情報の作成時に、サーバー時刻で確認日時を付けられる', async () => {
+    await assertSucceeds(setDoc(doc(as(BOB), 'users', BOB), { ...validUser(), publishAckAt: serverTimestamp() }));
+  });
+  it('確認日時を過去の日時にして作成できない(偽れない)', async () => {
+    await assertFails(
+      setDoc(doc(as(BOB), 'users', BOB), { ...validUser(), publishAckAt: Timestamp.fromDate(new Date('2020-01-01')) }),
+    );
+  });
+  it('確認日時を後から、サーバー時刻で付けられる(本人のみ)', async () => {
+    await assertSucceeds(
+      updateDoc(doc(as(ALICE), 'users', ALICE), { publishAckAt: serverTimestamp(), updatedAt: serverTimestamp() }),
+    );
+  });
+  it('確認日時を後から付けるとき、過去の日時にできない(偽れない)', async () => {
+    await assertFails(
+      updateDoc(doc(as(ALICE), 'users', ALICE), {
+        publishAckAt: Timestamp.fromDate(new Date('2020-01-01')),
+        updatedAt: serverTimestamp(),
+      }),
+    );
+  });
+  it('他人のユーザー情報に確認日時を書けない', async () => {
+    await assertFails(
+      updateDoc(doc(as(BOB), 'users', ALICE), { publishAckAt: serverTimestamp(), updatedAt: serverTimestamp() }),
+    );
+  });
+  it('確認日時が付いたあとは、変更できない', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'users', ALICE), { publishAckAt: Timestamp.fromDate(new Date('2026-09-01')) });
+    });
+    await assertFails(
+      updateDoc(doc(as(ALICE), 'users', ALICE), { publishAckAt: serverTimestamp(), updatedAt: serverTimestamp() }),
+    );
+  });
+  it('確認日時が付いたあとは、消せない(ほかの項目だけの上書きも不可)', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'users', ALICE), { publishAckAt: Timestamp.fromDate(new Date('2026-09-01')) });
+    });
+    await assertFails(setDoc(doc(as(ALICE), 'users', ALICE), { ...validUser(), createdAt: Timestamp.now() }));
+  });
+  it('確認日時が付いたあとも、ほかの項目(表示名)は変更できる', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'users', ALICE), { publishAckAt: Timestamp.fromDate(new Date('2026-09-01')) });
+    });
+    await assertSucceeds(
+      updateDoc(doc(as(ALICE), 'users', ALICE), { displayName: 'ありす', updatedAt: serverTimestamp() }),
+    );
+  });
   it('ユーザー情報をアプリから直接削除できない(削除はサーバー処理)', async () => {
     await assertFails(deleteDoc(doc(as(ALICE), 'users', ALICE)));
   });
@@ -146,8 +195,8 @@ describe('plants(植物)', () => {
   it('本人は非公開の状態で植物を登録できる', async () => {
     await assertSucceeds(setDoc(doc(as(ALICE), 'users', ALICE, 'plants', 'p2'), validPlant()));
   });
-  it('最初から公開状態で登録できない(初期設定は非公開)', async () => {
-    await assertFails(
+  it('最初から公開状態(写真のみ)で登録できる(初期は公開。書き出しは確認日時の後だけ)', async () => {
+    await assertSucceeds(
       setDoc(doc(as(ALICE), 'users', ALICE, 'plants', 'p2'), validPlant({ visibility: { public: true, scope: 'photos' } })),
     );
   });
