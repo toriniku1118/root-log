@@ -91,6 +91,7 @@
 docker compose build
 docker compose run --rm firebase bash -c "npm install && npm test"                       # 権限ルールのテスト
 docker compose run --rm firebase bash -c "cd functions && npm install && npm run build"  # サーバー処理の型チェック
+docker compose run --rm firebase bash -c "cd functions && npm test"                      # 写真処理(位置情報の削除など)のテスト
 docker compose up firebase                                                               # エミュレーター(UI: http://localhost:4000)
 docker compose run --rm flutter                                                          # Flutter 開発用コンテナ
 ```
@@ -103,6 +104,8 @@ docker compose run --rm flutter                                                 
 5. 実機(iOS/Android)で、写真の EXIF 撮影時刻とタイムゾーンが来歴判定(`processUpload`)どおりになるかを確認する。
 
 ## 既知の限界・注意
+- `firebase/functions/` の `npm audit` に、`uuid`(中)が2件残る。`@google-cloud/storage`(最新版)が古い `gaxios` を固定していて上流に修正がなく、`uuid.v4()` を引数なしで使うだけなので該当する条件に当たらない(#7)。`@google-cloud/storage` の更新時に再確認する。
+- `sharp` などの写真処理のライブラリを更新したら、必ず `cd functions && npm test` で位置情報が消えることを確認する。
 - 来歴の「アプリ内カメラで撮影」「EXIF の撮影時刻」は端末側の情報で、改造アプリなら偽装できる。保証できるのはサーバーの受信時刻だけ。画面では「この日時までに撮影された写真」と表示する。
 - Storage のデフォルトバケットは東京に作る(Storage トリガーのリージョンと合わせる)。
 - Firebase エミュレーターのコンテナは UID 1000 前提。ホストの UID が違う場合は調整する。
