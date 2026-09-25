@@ -60,7 +60,7 @@
 
 | 対象 | コマンド | 結果 |
 |---|---|---|
-| Flutter(単体・ウィジェット) | `docker compose run --rm flutter bash -c "flutter pub get && flutter test"` | 69件合格(`plant_repository_test` 12、`plant_genre_test` 5、`plant_health_test` 3、`plant_input_test` 27、`plant_rules_consistency_test` 10、`plant_groups_test` 4、`home_screen_test` 8)。`flutter analyze` も問題なし(2026-09-26、#54) |
+| Flutter(単体・ウィジェット) | `docker compose run --rm flutter bash -c "flutter pub get && flutter test"` | 86件合格(`plant_repository_test` 12、`plant_genre_test` 5、`plant_health_test` 3、`plant_input_test` 27、`plant_rules_consistency_test` 10、`plant_groups_test` 4、`home_screen_test` 8、`add_plant_screen_test` 17)。`flutter analyze` も問題なし(2026-09-26、#17) |
 | 権限ルール(Firestore・Storage) | `docker compose run --rm firebase bash -c "npm install && npm test"` | 71件合格(Firestore 57、Storage 14) |
 | サーバー処理の型チェック | `docker compose run --rm firebase bash -c "cd functions && npm install && npm run build"` | 合格 |
 | 写真の処理(位置情報の削除など) | `docker compose run --rm firebase bash -c "cd functions && npm install && npm test"` | 15件合格(写真の処理 6、公開用データ 9) |
@@ -79,6 +79,7 @@
 | `app/test/data/plant_repository_test.dart` | 12 | REQ-006、007、009、047、048 |
 | `app/test/features/home/plant_groups_test.dart` | 4 | REQ-005 |
 | `app/test/features/home/home_screen_test.dart` | 8 | REQ-004、005、006、011 |
+| `app/test/features/plants/add_plant_screen_test.dart` | 17 | REQ-006、007、008、047 |
 | `firebase/tests/firestore.rules.test.ts` | 57 | REQ-006、007、008、009、023、028、035〜038、047、048 |
 | `firebase/tests/storage.rules.test.ts` | 14 | REQ-012、013、016、035 |
 | `firebase/functions/src/image.test.ts` | 6 | REQ-016、020 |
@@ -133,9 +134,9 @@
 | 003 | SCR-03、FN-03 | 3.3 | 単体:`plant_genre_test`(9種)。ルール:観葉植物全般で登録できる | システム:0〜9個を選べる |
 | 004 | 全画面、3.1 | 1章 | システム:`home_screen_test`(日本語・日付選択の日本語) | システム:各画面を作るときに追加 |
 | 005 | SCR-04、FN-04 | 1・2章 | 単体:`plant_groups_test`。システム:`home_screen_test`(0件の案内・置き場所の見出し・各株の表示・その場で更新) | 最新写真・前回の撮影からの日数・来歴の印・「巡回する」(未実装) |
-| 006 | SCR-05、FN-05 | 3.2・4・5章 | 単体:`plant_input_test`、`plant_repository_test`。結合:`plant_rules_consistency_test`、ルール(本人だけ作成・非公開で作成・文字数) | システム:追加画面(#17) |
-| 007 | SCR-03、SCR-05 | 3.2 | 単体:`plant_genre_test`(9種・株に選べる8種)、`plant_input_test`(1〜3個)。結合:`plant_rules_consistency_test`。ルール:1〜3個は通り、0個・4個・重複・知らない値・実生は拒否、旧項目 `genre` は拒否 | システム:ジャンルの選択欄(#17) |
-| 008 | SCR-05 | 3.2 | 単体:`plant_genre_test`(タグ)。結合:`plant_rules_consistency_test`(タグの id)。ルール:「provenance」タグは付けられない | システム:タグを選ぶ画面(#17) |
+| 006 | SCR-05、FN-05 | 3.2・4・5章 | 単体:`plant_input_test`、`plant_repository_test`。結合:`plant_rules_consistency_test`、ルール(本人だけ作成・非公開で作成・文字数) | システム(済み):`add_plant_screen_test`(必須・上限・二重登録・入手日・戻る確認ほか)。受入:実機・Web で確認 |
+| 007 | SCR-03、SCR-05 | 3.2 | 単体:`plant_genre_test`(9種・株に選べる8種)、`plant_input_test`(1〜3個)。結合:`plant_rules_consistency_test`。ルール:1〜3個は通り、0個・4個・重複・知らない値・実生は拒否、旧項目 `genre` は拒否 | システム(済み):`add_plant_screen_test`(初期選択・1〜3個・実生が出ない)。受入:実機・Web で確認 |
+| 008 | SCR-05 | 3.2 | 単体:`plant_genre_test`(タグ)。結合:`plant_rules_consistency_test`(タグの id)。ルール:「provenance」タグは付けられない | システム(済み):`add_plant_screen_test`(タグの選択と保存) |
 | 009 | SCR-05、FN-06 | 4.2 | 単体:`plant_repository_test`(更新)。ルール:更新できる・作成日時は変えられない・来歴の印の後も更新できる | システム:編集画面 |
 | 010 | SCR-05、FN-07 | 4.2、10章 | 単体:`plant_repository_test`(一覧の購読のテストの中で削除を1回使うだけ。専用のテストは未実装) | 単体:削除の専用のテスト。結合:エミュレーターで `onPlantDeleted`(写真・記録・公開用データの後片付け)。システム:確認つき削除 |
 | 011 | SCR-04 | 1章 | システム:`home_screen_test`(500株で、見えている分だけ描画) | — |
@@ -174,7 +175,7 @@
 | 044 | — | — | 権限ルールの全テスト(71件)を、変更のたびに実行 | PR のチェック項目 |
 | 045 | FN-25 | 7章6 | なし(未実装) | 5章の数字を集計する手順を作り、テスト用のデータで確かめる |
 | 046 | SCR-13、FN-26 | 8章7 | ルール:既存の Storage テスト(「他人は非公開の写真を読めない」など)で、他人の写真を取れないことを確認済み | 単体:期間・株・写真の絞り込み、ファイル名(連番・使えない文字の置き換え)。システム:期間・株・写真の選択、0枚のときの案内、途中でやめても保存済みが残る、削除した写真が入らない(結合:エミュレーターで位置情報が入っていない)。受入:実機で写真フォルダに保存できる |
-| 047 | SCR-05 | 3.5、5章 | ルール(済み):上限ちょうどは通り+1・負数・小数・文字列は拒否、`null` は可、他人が読めない、公開用データを直接書けない。単体(済み):`plant_input_test`・`plant_repository_test`。サーバー(済み):`publicPlant.test.ts` で公開用データに価格が出ない | システム:入力欄と、非公開の表示(#17) |
+| 047 | SCR-05 | 3.5、5章 | ルール(済み):上限ちょうどは通り+1・負数・小数・文字列は拒否、`null` は可、他人が読めない、公開用データを直接書けない。単体(済み):`plant_input_test`・`plant_repository_test`。サーバー(済み):`publicPlant.test.ts` で公開用データに価格が出ない | システム(済み):`add_plant_screen_test`(空欄・範囲外・カンマ・全角、「自分だけが見られます」の表示) |
 | 048 | SCR-08、SCR-04、FN-27 | 3.5 | ルール(済み):5値以外を拒否、記録の種類 `health` は値が必須・ほかの種類では付けられない、他人が読み書きできない。単体(済み):`plant_health_test`。サーバー(済み):健康状態の記録は公開しない | 単体:健康状態の変更で記録が1件増える。システム:履歴に「○○ → ○○」と出る(株の詳細の実装のとき) |
 
 ## 8. 「見えてはいけないものが見えない」テスト
