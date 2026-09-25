@@ -99,6 +99,7 @@ docker compose run --rm firebase bash -c "cd functions && npm install && npm run
 docker compose run --rm firebase bash -c "cd functions && npm test"                      # 写真処理(位置情報の削除など)のテスト
 docker compose up firebase                                                               # エミュレーター(UI: http://localhost:4000)
 docker compose run --rm flutter                                                          # Flutter 開発用コンテナ
+docker compose run --rm --service-ports web                                              # ローカルで画面を確認(Windows のブラウザで http://localhost:3000。直したら r で再ビルド→F5)
 ```
 
 ## ステップ1で最初にやること
