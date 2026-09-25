@@ -24,15 +24,17 @@
 | `data/`(保存先) | 追加は必ず非公開、条件を満たさない追加は1件も増えない、更新で id・作成日時・共有設定が変わらない、存在しない株の更新はエラー、id の形式、id の衝突 | `flutter test` | 済み(`plant_repository_test.dart`) |
 | `features/home/plant_groups.dart` | 置き場所の名前順・未設定は最後、置き場所の中は追加順、件数が多くても全株が入る | `flutter test` | 済み(`plant_groups_test.dart`) |
 | `functions/src/image.ts`(写真の処理) | 縮小後に EXIF・GPS・機種名が残らない(空振りにならないよう、元画像に入っていることも確認)、向きの反映、長辺の縮小と非拡大、画素数の上限 | `npm test`(`functions/`) | 済み(6件) |
+| `functions/src/publicPlant.ts`(公開用データの作り方) | 購入価格・健康状態・置き場所・鉢の号数が出ない(項目を名指しで選ぶ)、公開範囲ごとの出し分け、健康状態の記録は公開しない | `npm test`(`functions/`) | 済み(8件。わざと価格を書き出す変更を入れて、テストが失敗することを確認した。#50) |
 | 来歴の判定(`index.ts`) | 撮影元 `camera`、撮影時刻との差10分以内、タイムゾーンあり/なし、重複、撮影時刻なし | 判定の部分を関数として切り出して `functions` の単体テストに加える | 未実装(予定) |
 | 記録の検証(`validatePlantLog`)・水やりの日数の計算・「いつもの間隔」 | 記録の条件、前回からの日数、間隔の出し方(Q4) | `flutter test` | 未実装(予定) |
-| 購入価格・健康状態の検証(`validatePlantInput`、健康状態の変更) | 購入価格の範囲と型、健康状態の値、変更で記録が1件増える(株の更新と記録の追加は同時に成功・失敗する) | `flutter test` | 未実装(予定) |
+| 購入価格の検証(`validatePlantInput`)・健康状態の値(`PlantHealth`) | 購入価格の範囲(0〜99,999,999。上限ちょうどは通り+1・負数はエラー)、健康状態の id・表示名・初期値 | `flutter test` | 済み(`plant_input_test.dart`、`plant_health_test.dart`、`plant_repository_test.dart`。#50) |
+| 健康状態の変更(株の更新と記録の追加を同時に行う) | 変更で記録が1件増える。株の更新と記録の追加は同時に成功・失敗する | `flutter test` | 未実装(予定。株の詳細の記録を作るとき) |
 
 ### 2.2 結合テスト(内部設計)
 | 対象 | 観点 | 方法 | 状態 |
 |---|---|---|---|
-| アプリの入力条件 ↔ 権限ルール | ジャンル・タグ・公開範囲の id、文字数の上限、「新規は非公開を強制」「来歴の印はサーバー専用」が同じ | `plant_rules_consistency_test.dart`(ルールのファイルを読んで突き合わせる) | 済み(6件) |
-| 権限ルール(Firestore) | 本人以外が読めない・書けない、非公開で作る、課金状態・年齢区分・来歴の印・写真の記録・公開用データをアプリから書けない、記録時刻を偽れない、名前の文字数(絵文字は2文字分) | `firebase/tests/firestore.rules.test.ts`(エミュレーター) | 済み(44件) |
+| アプリの入力条件 ↔ 権限ルール | ジャンル・タグ・公開範囲・健康状態の id、購入価格の範囲、文字数の上限、「新規は非公開を強制」「来歴の印はサーバー専用」が同じ | `plant_rules_consistency_test.dart`(ルールのファイルを読んで突き合わせる) | 済み(8件) |
+| 権限ルール(Firestore) | 本人以外が読めない・書けない、非公開で作る、課金状態・年齢区分・来歴の印・写真の記録・公開用データをアプリから書けない、記録時刻を偽れない、名前の文字数(絵文字は2文字分)、購入価格の範囲、健康状態の値と記録(種類 health) | `firebase/tests/firestore.rules.test.ts`(エミュレーター) | 済み(44件) |
 | 権限ルール(Storage) | 他人の場所にアップロードできない、画像以外は不可、撮影元・株の指定が必須、元画像は本人も読めない、処理済みの写真は本人だけ、公開写真はログインしている人だけ | `firebase/tests/storage.rules.test.ts`(エミュレーター) | 済み(14件) |
 | 画面 ↔ 保存先(メモリ) | ホームが保存先の変更をその場で反映する、追加して戻ると一覧に出る | `home_screen_test.dart` | 済み |
 | サーバー処理の通し | `uploads/` に保存 → `processUpload` → `photos/` と写真の記録ができ、元画像が消える。来歴の判定。`deletePhoto`(欠落の記録)、`onPlantDeleted`(後片付け)、`deleteAccount` | エミュレーター(Firestore・Storage・Functions)上で、テスト用の画像を使って通す | 未実装(予定) |
@@ -58,10 +60,10 @@
 
 | 対象 | コマンド | 結果 |
 |---|---|---|
-| Flutter(単体・ウィジェット) | `docker compose run --rm flutter bash -c "flutter pub get && flutter test"` | 49件合格(`plant_repository_test` 8、`plant_genre_test` 4、`plant_input_test` 19、`plant_rules_consistency_test` 6、`home_screen_test` 8、`plant_groups_test` 4) |
-| 権限ルール(Firestore・Storage) | `docker compose run --rm firebase bash -c "npm install && npm test"` | 58件合格(Firestore 44、Storage 14) |
+| Flutter(単体・ウィジェット) | `docker compose run --rm flutter bash -c "flutter pub get && flutter test"` | 61件合格(`plant_repository_test` 11、`plant_genre_test` 4、`plant_health_test` 3、`plant_input_test` 23、`plant_rules_consistency_test` 8、`plant_groups_test` 4、`home_screen_test` 8)。`flutter analyze` も問題なし(2026-09-26、#50) |
+| 権限ルール(Firestore・Storage) | `docker compose run --rm firebase bash -c "npm install && npm test"` | 68件合格(Firestore 54、Storage 14) |
 | サーバー処理の型チェック | `docker compose run --rm firebase bash -c "cd functions && npm install && npm run build"` | 合格 |
-| 写真の処理(位置情報の削除など) | `docker compose run --rm firebase bash -c "cd functions && npm install && npm test"` | 6件合格 |
+| 写真の処理(位置情報の削除など) | `docker compose run --rm firebase bash -c "cd functions && npm install && npm test"` | 14件合格(写真の処理 6、公開用データ 8) |
 
 - 権限ルール(`firebase/`)・サーバー処理(`functions/`)を変えたら、上の3つ(権限ルール・型チェック・写真の処理)を実行する。
 - `sharp` などの写真処理のライブラリを更新したら、必ず写真の処理のテストで位置情報が消えることを確認する。
@@ -70,15 +72,17 @@
 ## 4. 既存のテストと要件の対応
 | ファイル | 件数 | 主に確かめる要件 |
 |---|---|---|
-| `app/test/domain/plant_input_test.dart` | 19 | REQ-006 |
+| `app/test/domain/plant_input_test.dart` | 23 | REQ-006、047 |
 | `app/test/domain/plant_genre_test.dart` | 4 | REQ-003、007、008 |
-| `app/test/domain/plant_rules_consistency_test.dart` | 6 | REQ-006、007、008、035、037 |
-| `app/test/data/plant_repository_test.dart` | 8 | REQ-006、009 |
+| `app/test/domain/plant_health_test.dart` | 3 | REQ-048 |
+| `app/test/domain/plant_rules_consistency_test.dart` | 8 | REQ-006、007、008、035、037、047、048 |
+| `app/test/data/plant_repository_test.dart` | 11 | REQ-006、009、047、048 |
 | `app/test/features/home/plant_groups_test.dart` | 4 | REQ-005 |
 | `app/test/features/home/home_screen_test.dart` | 8 | REQ-004、005、006、011 |
-| `firebase/tests/firestore.rules.test.ts` | 44 | REQ-006、008、009、023、028、035〜038 |
+| `firebase/tests/firestore.rules.test.ts` | 54 | REQ-006、008、009、023、028、035〜038、047、048 |
 | `firebase/tests/storage.rules.test.ts` | 14 | REQ-012、013、016、035 |
 | `firebase/functions/src/image.test.ts` | 6 | REQ-016、020 |
+| `firebase/functions/src/publicPlant.test.ts` | 8 | REQ-028、047、048 |
 
 ## 5. 4か月目の判定に使う数字(受入・FN-25)
 判定点は `docs/project/evaluation.md` 5章。ステップ1の判定の基準は「自分が続けている」「テスターの半数以上が4週後も週1回以上撮影」「テスターが来歴記録を『取引で見せたい』と答える」「セキュリティのフェーズ1必須項目を満たす」。
@@ -158,7 +162,7 @@
 | 032 | SCR-11、FN-21 | 9章 | なし(未実装) | 単体:間隔の計算。受入:実機 |
 | 033 | SCR-11、FN-22、FN-24 | 3.4 | なし(未実装) | システム:設定の画面 |
 | 034 | SCR-12、FN-23 | 10章 | なし(`deleteAccount` のテストは未実装) | 結合:エミュレーターで `deleteAccount`。システム:確認→削除 |
-| 035 | 5章 | 3.1 | ルール:Firestore 44件・Storage 14件(本人以外が読めない、公開用データを直接書けない、定義していない場所に書けない、など) | 8章 |
+| 035 | 5章 | 3.1 | ルール:Firestore 54件・Storage 14件(本人以外が読めない、公開用データを直接書けない、定義していない場所に書けない、など) | 8章 |
 | 036 | 5章 | 3.1 | ルール:アプリから写真の記録・`systemLogs` を作れない・書き換えられない | — |
 | 037 | 5章 | 3.1 | ルール:課金状態・年齢区分・来歴の印を変更できない | — |
 | 038 | 5章 | 3.4 | ルール:知らない項目(例:住所)を含めて作成できない。単体:置き場所は30文字まで | ルール:都道府県のコード以外を拒否するテスト |
@@ -167,11 +171,11 @@
 | 041 | — | 7章 | (実行環境として、Docker とエミュレーターを整備済み。3章) | 結合:開発用プロジェクトへの接続(順9) |
 | 042 | — | — | なし(Android のみ作成済み) | 受入:実機(iOS・Android) |
 | 043 | — | — | `.gitignore` に `google-services.json`・`GoogleService-Info.plist`・`.env`・`key.properties`・`*.jks` を入れてある。リポジトリに含まれるファイルにもない(2026-09-26 に確認) | PR のチェック項目 |
-| 044 | — | — | 権限ルールの全テスト(58件)を、変更のたびに実行 | PR のチェック項目 |
+| 044 | — | — | 権限ルールの全テスト(68件)を、変更のたびに実行 | PR のチェック項目 |
 | 045 | FN-25 | 7章6 | なし(未実装) | 5章の数字を集計する手順を作り、テスト用のデータで確かめる |
 | 046 | SCR-13、FN-26 | 8章7 | ルール:既存の Storage テスト(「他人は非公開の写真を読めない」など)で、他人の写真を取れないことを確認済み | 単体:期間・株・写真の絞り込み、ファイル名(連番・使えない文字の置き換え)。システム:期間・株・写真の選択、0枚のときの案内、途中でやめても保存済みが残る、削除した写真が入らない(結合:エミュレーターで位置情報が入っていない)。受入:実機で写真フォルダに保存できる |
-| 047 | SCR-05 | 3.5、5章 | ルール:購入価格の上限ちょうどは通り+1は拒否、負数・小数・文字列は拒否、`null` は可(予定)。他人が読めない(既存のルールで確認済み) | 単体:購入価格の検証。システム:入力欄と、非公開の表示。結合:購入価格が `publicPlants` に出ない |
-| 048 | SCR-08、SCR-04、FN-27 | 3.5 | ルール:5値以外を拒否、記録の種類 `health` は `health` の値が必須、ほかの種類では付けられない(予定) | 単体:健康状態の変更で記録が1件増える。システム:履歴に「○○ → ○○」と出る |
+| 047 | SCR-05 | 3.5、5章 | ルール(済み):上限ちょうどは通り+1・負数・小数・文字列は拒否、`null` は可、他人が読めない、公開用データを直接書けない。単体(済み):`plant_input_test`・`plant_repository_test`。サーバー(済み):`publicPlant.test.ts` で公開用データに価格が出ない | システム:入力欄と、非公開の表示(#17) |
+| 048 | SCR-08、SCR-04、FN-27 | 3.5 | ルール(済み):5値以外を拒否、記録の種類 `health` は値が必須・ほかの種類では付けられない、他人が読み書きできない。単体(済み):`plant_health_test`。サーバー(済み):健康状態の記録は公開しない | 単体:健康状態の変更で記録が1件増える。システム:履歴に「○○ → ○○」と出る(株の詳細の実装のとき) |
 
 ## 8. 「見えてはいけないものが見えない」テスト
 権限ルールを変えたら追加する(REQ-044)。現状と、これから追加するもの。
@@ -191,6 +195,8 @@
 | 他人の受付場所にアップロードする・元画像を読む・上書きする | Storage:「他人の受付場所にはアップロードできない」「元画像は本人でも読めない」「上書き・削除できない」 |
 | 他人が、非公開の写真を読む・処理済みの写真を書き換える | Storage:「他人は非公開の写真を読めない」「本人でも処理済みの写真を直接書き換えられない」 |
 | ログインしていない人が、公開写真を読む | Storage:「ログインしていない人は公開用の写真も読めない」 |
+| 購入価格を他人が読む・公開用データに出す | 「他人は購入価格を読めない」「購入価格を含む公開用データを、本人でも直接書けない」。サーバー:`publicPlant.test.ts`(どの公開範囲でも価格・健康状態・置き場所が出ない) |
+| 健康状態の記録を他人が読み書きする | 「他人は健康状態の記録を書けない・読めない」 |
 
 ### 8.2 これから追加するもの
 | いつ | 追加するテスト |
@@ -198,8 +204,6 @@
 | 撮影通知の頻度・時間の保存先を決めたとき(Q3) | 他人がその設定を読めない・書けない。型や範囲の外の値を入れられない |
 | 都道府県の入力を決めたとき(Q2) | 都道府県のコード以外を保存できない(ルールにはあるが、テストがない) |
 | 段階の値(REQ-024) | 決めた段階以外を記録できない |
-| 購入価格(REQ-047)を作るとき | 上限ちょうどは通り、+1・負数・小数・文字列は拒否される。**購入価格が公開用データ(`publicPlants`)に出ない**(公開を選んだ株で書き出しの結果に価格が含まれない) |
-| 健康状態(REQ-048)を作るとき | 5値以外を記録・株に入れられない。記録の種類 `health` は `health` の値が必須で、ほかの種類では付けられない。他人が読めない |
 | 写真のダウンロードを作るとき(REQ-046) | 他人の写真をダウンロードできない(既存の Storage のテストで足りることを確認。サーバー処理は足さない方針。足すことにしたら、本人以外が呼べないテストを追加) |
 | ステップ3(公開プロフィール・リンク) | 非公開のリンクが他人に見えない。許可していないドメインは保存できない(セキュリティ要件 5章) |
 | 公開の閲覧を作るとき | 公開を取り消したあと、公開用データと写真のコピーが見えなくなる |

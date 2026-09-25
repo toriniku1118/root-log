@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rootlog/domain/plant.dart';
 import 'package:rootlog/domain/plant_genre.dart';
+import 'package:rootlog/domain/plant_health.dart';
 import 'package:rootlog/domain/plant_input.dart';
 import 'package:rootlog/domain/plant_tag.dart';
 
@@ -37,6 +38,17 @@ void main() {
   test('タグの id がルールの tags と同じ', () {
     final fromRules = quotedList(RegExp(r'data\(\)\.tags\.hasOnly\(\[(.*?)\]\)'));
     expect(PlantTag.values.map((t) => t.id).toSet(), fromRules.toSet());
+  });
+
+  test('健康状態の id がルールの healthStates() と同じ(順番も含めて)', () {
+    final fromRules = quotedList(RegExp(r'function healthStates\(\)\s*\{\s*return\s*\[(.*?)\];', dotAll: true));
+    expect(PlantHealth.values.map((h) => h.id).toList(), fromRules);
+  });
+
+  test('購入価格の範囲(0〜上限の整数)がルールと同じ', () {
+    expect(PlantLimits.purchasePrice, limit(RegExp(r'data\(\)\.purchasePrice <= (\d+)')));
+    expect(rules, contains('data().purchasePrice is int'));
+    expect(rules, contains('data().purchasePrice >= 0'));
   });
 
   test('公開範囲(scope)の id がルールと同じ', () {

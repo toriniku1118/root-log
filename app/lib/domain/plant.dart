@@ -1,4 +1,5 @@
 import 'plant_genre.dart';
+import 'plant_health.dart';
 import 'plant_tag.dart';
 
 /// 公開の範囲(`firebase/firestore.rules` の visibility.scope)。
@@ -37,6 +38,8 @@ class Plant {
     this.source,
     this.locationName,
     this.potSize,
+    this.purchasePrice,
+    this.health = defaultPlantHealth,
   });
 
   final String id;
@@ -51,6 +54,12 @@ class Plant {
   /// 置き場所の名前だけ。住所・位置情報は持たない。
   final String? locationName;
   final String? potSize;
+
+  /// 購入価格(円)。自分だけが見られる。公開用データには出さない(盗難対策)。
+  final int? purchasePrice;
+
+  /// いまの健康状態。変更は記録としても残す(株の履歴でたどれる)。
+  final PlantHealth health;
   final Set<PlantTag> tags;
   final PlantVisibility visibility;
   final DateTime createdAt;

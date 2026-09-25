@@ -211,6 +211,56 @@ describe('plants(植物)', () => {
       }),
     );
   });
+
+  // ---------- 購入価格(REQ-047)・健康状態(REQ-048) ----------
+  it('購入価格は0〜99,999,999の整数だけ(上限ちょうどは通り、+1は拒否)', async () => {
+    let n = 0;
+    const create = (price: unknown) =>
+      setDoc(doc(as(ALICE), 'users', ALICE, 'plants', `price${n++}`), validPlant({ purchasePrice: price }));
+    await assertSucceeds(create(0));
+    await assertSucceeds(create(12_800));
+    await assertSucceeds(create(99_999_999));
+    await assertFails(create(100_000_000));
+    await assertFails(create(-1));
+    await assertFails(create(1500.5));
+    await assertFails(create('12800'));
+  });
+  it('購入価格は未設定(null・書かない)でも登録できる', async () => {
+    await assertSucceeds(setDoc(doc(as(ALICE), 'users', ALICE, 'plants', 'price-null'), validPlant({ purchasePrice: null })));
+    await assertSucceeds(setDoc(doc(as(ALICE), 'users', ALICE, 'plants', 'price-none'), validPlant()));
+  });
+  it('本人は購入価格を後から更新できる', async () => {
+    await assertSucceeds(
+      updateDoc(doc(as(ALICE), 'users', ALICE, 'plants', 'p1'), { purchasePrice: 8_000, updatedAt: serverTimestamp() }),
+    );
+    await assertFails(
+      updateDoc(doc(as(ALICE), 'users', ALICE, 'plants', 'p1'), { purchasePrice: -5, updatedAt: serverTimestamp() }),
+    );
+  });
+  it('他人は購入価格を読めない(自分だけが見られる)', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'users', ALICE, 'plants', 'p1'), { purchasePrice: 30_000 });
+    });
+    await assertSucceeds(getDoc(doc(as(ALICE), 'users', ALICE, 'plants', 'p1')));
+    await assertFails(getDoc(doc(as(BOB), 'users', ALICE, 'plants', 'p1')));
+    await assertFails(getDoc(doc(as(null), 'users', ALICE, 'plants', 'p1')));
+  });
+  it('健康状態は決めた5つの値だけ', async () => {
+    let n = 0;
+    const create = (health: unknown) =>
+      setDoc(doc(as(ALICE), 'users', ALICE, 'plants', `health${n++}`), validPlant({ health }));
+    for (const h of ['initial', 'good', 'watch', 'bad', 'recovering']) {
+      await assertSucceeds(create(h));
+    }
+    await assertFails(create('unknown'));
+    await assertFails(create(''));
+    await assertFails(create(1));
+  });
+  it('本人は健康状態を後から変更できる(決めた値だけ)', async () => {
+    const ref = doc(as(ALICE), 'users', ALICE, 'plants', 'p1');
+    await assertSucceeds(updateDoc(ref, { health: 'bad', updatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(ref, { health: 'dead', updatedAt: serverTimestamp() }));
+  });
 });
 
 describe('logs(水やり・植え替えなどの記録)', () => {
@@ -253,6 +303,32 @@ describe('logs(水やり・植え替えなどの記録)', () => {
   it('サーバー用の種類(system)の記録は作れない', async () => {
     await assertFails(setDoc(doc(as(ALICE), 'users', ALICE, 'plants', 'p1', 'logs', 'l1'), validLog({ type: 'system' })));
   });
+  it('健康状態の変更を記録できる(種類 health は health の値が必須)', async () => {
+    const logRef = (id: string) => doc(as(ALICE), 'users', ALICE, 'plants', 'p1', 'logs', id);
+    await assertSucceeds(setDoc(logRef('h1'), validLog({ type: 'health', health: 'watch', note: '葉がしおれてきた' })));
+    for (const h of ['initial', 'good', 'bad', 'recovering']) {
+      await assertSucceeds(setDoc(logRef(`h-${h}`), validLog({ type: 'health', health: h })));
+    }
+    await assertFails(setDoc(logRef('h2'), validLog({ type: 'health' })));
+    await assertFails(setDoc(logRef('h3'), validLog({ type: 'health', health: 'unknown' })));
+  });
+  it('健康状態の値は、health 以外の種類の記録には付けられない', async () => {
+    const ref = doc(as(ALICE), 'users', ALICE, 'plants', 'p1', 'logs', 'w1');
+    await assertFails(setDoc(ref, validLog({ type: 'water', health: 'good' })));
+    await assertFails(setDoc(ref, validLog({ type: 'note', health: 'bad' })));
+  });
+  it('他人は健康状態の記録を書けない・読めない', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'users', ALICE, 'plants', 'p1', 'logs', 'h0'), {
+        ...validLog({ type: 'health', health: 'bad' }),
+        recordedAt: Timestamp.now(),
+      });
+    });
+    await assertFails(getDoc(doc(as(BOB), 'users', ALICE, 'plants', 'p1', 'logs', 'h0')));
+    await assertFails(
+      setDoc(doc(as(BOB), 'users', ALICE, 'plants', 'p1', 'logs', 'h9'), validLog({ type: 'health', health: 'good' })),
+    );
+  });
 });
 
 describe('photos(来歴の元になる写真の記録)', () => {
@@ -290,6 +366,12 @@ describe('公開用データ・サーバー専用データ', () => {
   it('本人でも公開用データを直接書けない(サーバーだけが書き出す)', async () => {
     await assertFails(setDoc(doc(as(ALICE), 'publicPlants', 'alice_p1'), { ownerUid: ALICE, name: '書き換え' }));
     await assertFails(setDoc(doc(as(ALICE), 'publicProfiles', ALICE), { displayName: 'x' }));
+  });
+  it('購入価格を含む公開用データを、本人でも直接書けない(価格は公開されない)', async () => {
+    await assertFails(
+      setDoc(doc(as(ALICE), 'publicPlants', 'alice_p1'), { ownerUid: ALICE, name: 'パキプス 1号', purchasePrice: 30_000 }),
+    );
+    await assertFails(setDoc(doc(as(BOB), 'publicPlants', 'alice_p1'), { ownerUid: ALICE, purchasePrice: 30_000 }));
   });
   it('写真の重複検出用データは誰も読み書きできない', async () => {
     await assertFails(getDoc(doc(as(ALICE), 'photoHashes', 'abc')));

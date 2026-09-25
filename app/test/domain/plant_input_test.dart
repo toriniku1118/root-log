@@ -10,6 +10,28 @@ Map<PlantField, String> validate(PlantInput input) => validatePlantInput(input, 
 String chars(int n, [String c = 'あ']) => List.filled(n, c).join();
 
 void main() {
+  group('購入価格(任意・円の整数。0〜99,999,999)', () {
+    test('未設定(null)・0・上限ちょうどは通る', () {
+      expect(validate(const PlantInput(name: 'x')), isEmpty);
+      expect(validate(const PlantInput(name: 'x', purchasePrice: 0)), isEmpty);
+      expect(validate(const PlantInput(name: 'x', purchasePrice: 12800)), isEmpty);
+      expect(validate(const PlantInput(name: 'x', purchasePrice: PlantLimits.purchasePrice)), isEmpty);
+    });
+    test('上限を1円超えるとエラー(メッセージにはカンマ区切りの上限が入る)', () {
+      final errors = validate(const PlantInput(name: 'x', purchasePrice: PlantLimits.purchasePrice + 1));
+      expect(errors.keys, [PlantField.purchasePrice]);
+      expect(errors[PlantField.purchasePrice], '購入価格は99,999,999円以下で入力してください');
+    });
+    test('負の数はエラー', () {
+      final errors = validate(const PlantInput(name: 'x', purchasePrice: -1));
+      expect(errors.keys, [PlantField.purchasePrice]);
+      expect(errors[PlantField.purchasePrice], '購入価格は0以上の整数で入力してください');
+    });
+    test('正規化しても購入価格はそのまま', () {
+      expect(const PlantInput(name: ' x ', purchasePrice: 500).normalized().purchasePrice, 500);
+    });
+  });
+
   group('名前', () {
     test('1文字と50文字は通る', () {
       expect(validate(PlantInput(name: 'a')), isEmpty);

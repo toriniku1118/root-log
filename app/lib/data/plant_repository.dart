@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import '../domain/plant.dart';
+import '../domain/plant_health.dart';
 import '../domain/plant_input.dart';
 
 /// 株の保存先の差し替え口。画面は保存先(メモリ・Firestore)を知らない。
@@ -82,6 +83,8 @@ class InMemoryPlantRepository implements PlantRepository {
       source: v.source,
       locationName: v.locationName,
       potSize: v.potSize,
+      purchasePrice: v.purchasePrice,
+      health: defaultPlantHealth,
       tags: v.tags,
       visibility: const PlantVisibility.privateDefault(),
       createdAt: now,
@@ -107,6 +110,8 @@ class InMemoryPlantRepository implements PlantRepository {
       source: v.source,
       locationName: v.locationName,
       potSize: v.potSize,
+      purchasePrice: v.purchasePrice,
+      health: current.health, // 健康状態は、編集画面ではなく、株の詳細で変える(変更は記録として残す)
       tags: v.tags,
       visibility: current.visibility,
       createdAt: current.createdAt,
