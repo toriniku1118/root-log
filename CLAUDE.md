@@ -105,6 +105,7 @@ docker compose run --rm flutter                                                 
 
 ## 既知の限界・注意
 - `firebase/functions/` の `npm audit` に、`uuid`(中)が2件残る。`@google-cloud/storage`(最新版)が古い `gaxios` を固定していて上流に修正がなく、`uuid.v4()` を引数なしで使うだけなので該当する条件に当たらない(#7)。`@google-cloud/storage` の更新時に再確認する。
+- `firebase/`(開発ツール)の `npm audit` に、同種の `uuid`(中)が3件残る。`firebase-tools`(最新版)が古い `gaxios` を固定しているため。`package.json` の `overrides` で `@google-cloud/pubsub` を新しい版に上げて他の指摘は解消済み(#8)。`firebase-tools` の更新時に再確認する。
 - `sharp` などの写真処理のライブラリを更新したら、必ず `cd functions && npm test` で位置情報が消えることを確認する。
 - 来歴の「アプリ内カメラで撮影」「EXIF の撮影時刻」は端末側の情報で、改造アプリなら偽装できる。保証できるのはサーバーの受信時刻だけ。画面では「この日時までに撮影された写真」と表示する。
 - Storage のデフォルトバケットは東京に作る(Storage トリガーのリージョンと合わせる)。
