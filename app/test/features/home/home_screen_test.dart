@@ -43,7 +43,7 @@ void main() {
   testWidgets('置き場所ごとに見出しが出て、置き場所は名前順・未設定は最後', (tester) async {
     await pumpApp(tester, plants: const [
       PlantInput(name: 'パキラ', locationName: 'リビング'),
-      PlantInput(name: 'チタノタ', genre: PlantGenre.agave),
+      PlantInput(name: 'チタノタ', genres: {PlantGenre.agave}),
       PlantInput(name: 'モンステラ', locationName: 'ベランダ'),
     ]);
     final positions = ['ベランダ', 'リビング', '置き場所未設定'].map((t) => tester.getTopLeft(find.text(t)).dy).toList();
@@ -57,10 +57,10 @@ void main() {
   testWidgets('各株に、名前・ジャンル・品種・タグが出る', (tester) async {
     await pumpApp(tester, plants: const [
       PlantInput(name: 'モンステラ', variety: 'デリシオーサ', tags: {PlantTag.seedling, PlantTag.rescue}),
-      PlantInput(name: 'ユーフォルビア', genre: PlantGenre.caudex),
+      PlantInput(name: 'ユーフォルビア', genres: {PlantGenre.caudex, PlantGenre.rare}),
     ]);
     expect(find.text('観葉植物全般・デリシオーサ'), findsOneWidget);
-    expect(find.text('塊根'), findsOneWidget);
+    expect(find.text('塊根・珍奇植物'), findsOneWidget); // ジャンルは複数のとき「・」でつなげる
     expect(find.text('復活チャレンジ'), findsOneWidget);
     expect(find.text('実生'), findsOneWidget);
   });

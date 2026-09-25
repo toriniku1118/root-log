@@ -57,7 +57,7 @@
 | 技術 | Flutter + Firebase(Auth / Firestore / Storage / Functions 第2世代 / App Check / Analytics / AdMob)。リージョン asia-northeast1 |
 | OS | iOS と Android を同時に出す |
 | ログイン | Apple でサインイン、Google でサインイン |
-| ジャンル | 観葉植物全般(foliage)、塊根、アガベ、多肉/サボテン、ビカクシダ、アロイド、珍奇植物、実生、その他 |
+| ジャンル | 観葉植物全般(foliage)、塊根、アガベ、多肉/サボテン、ビカクシダ、アロイド、珍奇植物、実生、その他。傾向(育ててみたい・集めている)の整理に使う。株のジャンルは複数選択(1〜3個)で、実生は株の側ではタグ(2026-09-26) |
 | 年齢 | 13歳以上。売買・交換・手渡しは18歳以上 |
 | 写真 | 枚数無制限。無料は長辺1600px程度に圧縮、有料は3000px(2026-09-26:高画質は有料の特典から外す。画質の区別を続けるかは未決) |
 | 来歴 | アプリ内カメラで撮った写真だけを来歴として扱い、撮影日時を後から変えられない |
@@ -88,7 +88,7 @@
 | `docs/step0-design.md` | データ設計、来歴写真の仕組み、サーバー処理、ステップ1の画面12個と流れ、作業順 |
 | `docs/terms-draft.md` / `docs/privacy-policy-draft.md` | テスト版の草案(ストア公開前に専門家確認) |
 | `docs/project/` | コンセプト、開発の決め事、セキュリティ要件、市場規模と収益、総合評価、SNSニーズ調査 |
-| `firebase/` | `firestore.rules`・`storage.rules`、`tests/`(Firestore 54件・Storage 14件)、`functions/src/index.ts` |
+| `firebase/` | `firestore.rules`・`storage.rules`、`tests/`(Firestore 57件・Storage 14件)、`functions/src/index.ts` |
 | `app/` | Flutter アプリ(Android のみ。アプリ ID は仮の `com.example.rootlog`。Firebase は未設定) |
 | `docs/android-device-wsl2.md` | Windows + WSL2 で Android 実機をつなぐ手順 |
 | `docker/`・`docker-compose.yml` | 開発用コンテナ(Flutter + Android SDK、Firebase エミュレーター) |

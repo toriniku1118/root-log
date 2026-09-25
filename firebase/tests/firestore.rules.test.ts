@@ -38,7 +38,7 @@ const validUser = () => ({
 
 const validPlant = (overrides: Record<string, unknown> = {}) => ({
   name: 'パキプス 1号',
-  genre: 'caudex',
+  genres: ['caudex'],
   variety: 'Operculicarya pachypus',
   source: '〇〇植物店',
   locationName: '南の窓辺',
@@ -156,7 +156,7 @@ describe('plants(植物)', () => {
   });
   it('観葉植物全般(foliage)のジャンルで登録できる', async () => {
     await assertSucceeds(
-      setDoc(doc(as(ALICE), 'users', ALICE, 'plants', 'p2'), validPlant({ name: 'パキラ', genre: 'foliage', variety: null })),
+      setDoc(doc(as(ALICE), 'users', ALICE, 'plants', 'p2'), validPlant({ name: 'パキラ', genres: ['foliage'], variety: null })),
     );
   });
   it('名前は50文字まで(絵文字は2文字分。アプリの入力検証と同じ数え方)', async () => {
@@ -171,7 +171,31 @@ describe('plants(植物)', () => {
     await assertFails(create('🌱'.repeat(26)));
   });
   it('決められたジャンル以外は登録できない', async () => {
-    await assertFails(setDoc(doc(as(ALICE), 'users', ALICE, 'plants', 'p2'), validPlant({ genre: 'unknown' })));
+    await assertFails(setDoc(doc(as(ALICE), 'users', ALICE, 'plants', 'p2'), validPlant({ genres: ['unknown'] })));
+  });
+  it('株のジャンルは複数選択(1〜3個)。0個・4個・重複は登録できない', async () => {
+    let n = 0;
+    const create = (genres: unknown) =>
+      setDoc(doc(as(ALICE), 'users', ALICE, 'plants', `genres${n++}`), validPlant({ genres }));
+    await assertSucceeds(create(['aroid']));
+    await assertSucceeds(create(['aroid', 'rare']));
+    await assertSucceeds(create(['caudex', 'succulent_cactus', 'rare']));
+    await assertFails(create([]));
+    await assertFails(create(['caudex', 'agave', 'aroid', 'rare']));
+    await assertFails(create(['aroid', 'aroid']));
+    await assertFails(create('aroid'));
+  });
+  it('実生(seedling)は株のジャンルにできない(タグで表す)。好きなジャンルには使える', async () => {
+    await assertFails(setDoc(doc(as(ALICE), 'users', ALICE, 'plants', 'p2'), validPlant({ genres: ['seedling'] })));
+    await assertSucceeds(setDoc(doc(as(ALICE), 'users', ALICE, 'plants', 'p3'), validPlant({ genres: ['agave'], tags: ['seedling'] })));
+    await assertSucceeds(
+      updateDoc(doc(as(ALICE), 'users', ALICE), { genres: ['caudex', 'seedling'], updatedAt: serverTimestamp() }),
+    );
+  });
+  it('旧項目 genre(単一のジャンル)では登録できない', async () => {
+    const { genres: _drop, ...rest } = validPlant();
+    await assertFails(setDoc(doc(as(ALICE), 'users', ALICE, 'plants', 'p2'), { ...rest, genre: 'caudex' }));
+    await assertFails(setDoc(doc(as(ALICE), 'users', ALICE, 'plants', 'p3'), validPlant({ genre: 'caudex' })));
   });
   it('クライアントは来歴のタグ(provenance)を自分で付けられない', async () => {
     await assertFails(setDoc(doc(as(ALICE), 'users', ALICE, 'plants', 'p2'), validPlant({ tags: ['provenance'] })));

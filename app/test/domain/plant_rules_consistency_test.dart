@@ -35,6 +35,16 @@ void main() {
     expect(PlantGenre.values.map((g) => g.id).toList(), fromRules);
   });
 
+  test('株に選べるジャンルの id がルールの plantGenres() と同じ(実生を除く8つ。順番も含めて)', () {
+    final fromRules = quotedList(RegExp(r'function plantGenres\(\)\s*\{\s*return\s*\[(.*?)\];', dotAll: true));
+    expect(PlantGenre.plantChoices.map((g) => g.id).toList(), fromRules);
+  });
+
+  test('株のジャンルの個数(1〜3)がルールと同じ', () {
+    expect(PlantLimits.genresMin, limit(RegExp(r'data\(\)\.genres\.size\(\) >= (\d+)')));
+    expect(PlantLimits.genresMax, limit(RegExp(r'data\(\)\.genres\.size\(\) >= \d+ && data\(\)\.genres\.size\(\) <= (\d+)')));
+  });
+
   test('タグの id がルールの tags と同じ', () {
     final fromRules = quotedList(RegExp(r'data\(\)\.tags\.hasOnly\(\[(.*?)\]\)'));
     expect(PlantTag.values.map((t) => t.id).toSet(), fromRules.toSet());

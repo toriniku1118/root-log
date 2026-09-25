@@ -23,7 +23,7 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 | `main.dart` / `app.dart` | アプリの起動、日本語設定、テーマ | 全体の設定だけ |
 | `constants.dart` | アプリ名(仮) | 定数 |
 | `domain/plant.dart` | `Plant`(株)、`PlantVisibility`(共有設定)、`PlantScope`(公開範囲) | 株の形。来歴の印は持たない(サーバーだけが付ける) |
-| `domain/plant_genre.dart` | `PlantGenre`(9種類)、`defaultPlantGenre` | ジャンルの id と表示名。id は権限ルールと同じ |
+| `domain/plant_genre.dart` | `PlantGenre`(9種類。株に選べるのは `plantChoices` の8種類)、`defaultPlantGenre` | ジャンルの id と表示名。id は権限ルールと同じ |
 | `domain/plant_tag.dart` | `PlantTag`(復活チャレンジ・実生) | タグの id と表示名。id は権限ルールと同じ |
 | `domain/plant_input.dart` | `PlantInput`、`PlantLimits`、`validatePlantInput`、`PlantValidationException` | 入力の正規化と検証。条件は権限ルールと同じ |
 | `data/plant_repository.dart` | `PlantRepository`(差し替え口)、`InMemoryPlantRepository`、`generatePlantId`、`PlantNotFoundException` | 株の保存・取得。今はメモリ上 |
@@ -64,7 +64,7 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 |---|---|---|---|
 | `id` | ドキュメント ID | 英数字・`_`・`-`、1〜64文字(写真の受付の条件) | `generatePlantId()` が20文字を作る |
 | `name` | `name` | 文字列、1〜50 | 必須 |
-| `genre` | `genre` | 9種類のどれか(`foliage` `caudex` `agave` `succulent_cactus` `platycerium` `aroid` `rare` `seedling` `other`) | 必須 |
+| `genres` | `genres` | 配列、**1〜3個、重複なし**。`foliage` `caudex` `agave` `succulent_cactus` `platycerium` `aroid` `rare` `other` の8つのどれか(**`seedling` は入れない。実生はタグ**) | 必須。2026-09-26 に、単一の `genre` から変更(#54) |
 | `variety` | `variety` | 文字列、〜80 | 任意 |
 | `acquiredAt` | `acquiredAt` | タイムスタンプ | 任意。今日以前(アプリで検証。ルールは型だけ) |
 | `source` | `source` | 文字列、〜100 | 任意。入手先(非公開。「入手先まで」を公開したときだけ公開用に出る) |
@@ -76,6 +76,8 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 | `visibility` | `visibility.public`、`visibility.scope` | 真偽値、`photos` / `history` / `source` | 必須。作成時は `public: false`、`scope: photos` |
 | `createdAt` / `updatedAt` | `createdAt` / `updatedAt` | サーバー時刻 | 必須。ルールが `request.time` と一致を要求する |
 | (持たない) | `hasProvenance` | 真偽値 | サーバーだけが書く。アプリの `Plant` は持たず、書き戻さない |
+
+- **ジャンルの使い方(2026-09-26 の決定)**:ジャンルは、正確な分類ではなく、「育ててみたい」(好きなジャンル=`users.genres`、9つ)と「集めている」(株のジャンル=`plants.genres`、8つ)という**傾向の整理**に使う。重なりを許すため、株のジャンルは複数選択(1〜3個)。実生は、株の側ではタグ(`tags` の `seedling`)で表し、傾向を数えるときに、実生タグの株を「実生」として数える。これで、好みと実際が、同じ9つの言葉で比べられる。
 
 ### 3.3 これから追加するデータ
 | データ | 保存先 | 内容 | 状態 |
@@ -144,7 +146,7 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 | 購入価格 | 任意、0〜99,999,999の整数(円) | `purchasePrice = 99999999` | `data().purchasePrice is int && >= 0 && <= 99999999`(または `null`) |
 | 健康状態 | 任意、5値のどれか | `PlantHealth` の id | `data().health in ['initial','good','watch','bad','recovering']` |
 | 入手日 | 任意、今日以前 | — | 型(タイムスタンプ)だけ。「今日以前」はアプリだけで検証 |
-| ジャンル | 9種類のどれか | `PlantGenre` の id | `genres()` |
+| ジャンル | 1〜3個、重複なし、`seedling` 以外の8つ | `PlantGenre.plantChoices`、`PlantLimits.genresMin` / `genresMax`(1 / 3) | `data().genres` が配列で、個数が1〜3、`hasOnly(plantGenres())`、重複なし |
 | タグ | `rescue` / `seedling` | `PlantTag` の id | `tags.hasOnly([...])` |
 
 - 前後の空白は取り除き、空欄は「未設定」(`null`)にする(`PlantInput.normalized()`)。
@@ -209,7 +211,7 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 
 | # | 確認したこと | 結果 | 対応 |
 |---|---|---|---|
-| 1 | ジャンルの id・表示名(9種) | 一致(`plant_genre_test.dart`、`plant_rules_consistency_test.dart`) | なし |
+| 1 | ジャンルの id・表示名(9種。株に選べるのは8種) | 一致(`plant_genre_test.dart`、`plant_rules_consistency_test.dart`) | なし |
 | 2 | タグ・公開範囲の id | 一致 | なし |
 | 3 | 文字数の上限(名前50・品種80・入手先100・置き場所30・号数10) | 一致(`PlantLimits` とルール) | なし |
 | 4 | 新規作成は必ず非公開、来歴の印はアプリから持たない | 一致 | なし |

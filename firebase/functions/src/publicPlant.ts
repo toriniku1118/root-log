@@ -36,7 +36,7 @@ export function buildPublicPlantDoc(input: BuildPublicPlantInput): Record<string
     ownerUid: input.ownerUid,
     plantId: input.plantId,
     name: plant.name,
-    genre: plant.genre,
+    genres: plant.genres ?? [],
     variety: plant.variety ?? null,
     tags: plant.tags ?? [],
     hasProvenance: plant.hasProvenance === true,

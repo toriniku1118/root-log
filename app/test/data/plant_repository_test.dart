@@ -20,7 +20,7 @@ void main() {
   test('追加すると、正規化された内容・必ず非公開・作成日時つきで保存される', () async {
     final plant = await repo.add(const PlantInput(
       name: ' モンステラ ',
-      genre: PlantGenre.foliage,
+      genres: {PlantGenre.foliage, PlantGenre.aroid},
       variety: ' デリシオーサ ',
       source: '  ',
       locationName: 'リビング',
@@ -74,12 +74,30 @@ void main() {
     expect(await repo.watchAll().first, isEmpty);
   });
 
-  test('9ジャンルのどれでも追加できる', () async {
-    for (final g in PlantGenre.values) {
-      await repo.add(PlantInput(name: g.label, genre: g));
+  test('株に選べる8ジャンルのどれでも追加できる。実生はジャンルには選べない', () async {
+    for (final g in PlantGenre.plantChoices) {
+      await repo.add(PlantInput(name: g.label, genres: {g}));
     }
     final all = await repo.watchAll().first;
-    expect(all.map((p) => p.genre), PlantGenre.values);
+    expect(all.map((p) => p.genres.single), PlantGenre.plantChoices);
+    expect(PlantGenre.plantChoices, isNot(contains(PlantGenre.seedling)));
+    await expectLater(
+      repo.add(const PlantInput(name: 'x', genres: {PlantGenre.seedling})),
+      throwsA(isA<PlantValidationException>()),
+    );
+  });
+
+  test('ジャンルは複数(1〜3個)を保存できる。0個・4個は追加できない', () async {
+    final plant = await repo.add(const PlantInput(name: 'a', genres: {PlantGenre.aroid, PlantGenre.rare}));
+    expect(plant.genres, {PlantGenre.aroid, PlantGenre.rare});
+    await expectLater(repo.add(const PlantInput(name: 'b', genres: {})), throwsA(isA<PlantValidationException>()));
+    await expectLater(
+      repo.add(const PlantInput(
+        name: 'c',
+        genres: {PlantGenre.caudex, PlantGenre.agave, PlantGenre.aroid, PlantGenre.rare},
+      )),
+      throwsA(isA<PlantValidationException>()),
+    );
   });
 
   test('一覧は購読した時点の内容がすぐ流れ、変更のたびに流れる', () async {
@@ -101,10 +119,10 @@ void main() {
   test('更新しても、id・作成日時・共有設定は変わらず、更新日時だけ進む', () async {
     final created = await repo.add(const PlantInput(name: 'a'));
     clockNow = DateTime(2026, 9, 26);
-    final updated = await repo.update(created.id, const PlantInput(name: 'b', genre: PlantGenre.agave));
+    final updated = await repo.update(created.id, const PlantInput(name: 'b', genres: {PlantGenre.agave}));
     expect(updated.id, created.id);
     expect(updated.name, 'b');
-    expect(updated.genre, PlantGenre.agave);
+    expect(updated.genres, {PlantGenre.agave});
     expect(updated.createdAt, created.createdAt);
     expect(updated.updatedAt, DateTime(2026, 9, 26));
     expect(updated.visibility.public, isFalse);

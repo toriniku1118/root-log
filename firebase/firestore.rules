@@ -43,6 +43,11 @@ service cloud.firestore {
     function genres() {
       return ['foliage', 'caudex', 'agave', 'succulent_cactus', 'platycerium', 'aroid', 'rare', 'seedling', 'other'];
     }
+    // 株のジャンル(2026-09-26):複数選択(1〜3個)。実生(seedling)は株の側ではタグで表すため、含めない。
+    // 好きなジャンル(users.genres)は上の genres()(9つ)、株のジャンル(plants.genres)はこの8つ。
+    function plantGenres() {
+      return ['foliage', 'caudex', 'agave', 'succulent_cactus', 'platycerium', 'aroid', 'rare', 'other'];
+    }
     // 株の健康状態(2026-09-26)。initial=登録直後でまだ決めていない(名前は仮)
     function healthStates() {
       return ['initial', 'good', 'watch', 'bad', 'recovering'];
@@ -86,15 +91,17 @@ service cloud.firestore {
 
       // ---------- 植物 ----------
       function plantKeys() {
-        return ['name', 'genre', 'variety', 'acquiredAt', 'source', 'locationName',
+        return ['name', 'genres', 'variety', 'acquiredAt', 'source', 'locationName',
                 'potSize', 'purchasePrice', 'health', 'tags', 'visibility', 'createdAt', 'updatedAt',
                 'hasProvenance'];   // hasProvenance はサーバーだけが設定(来歴写真がある印)
       }
       function validPlantFields() {
         return onlyKeys(plantKeys())
-          && requireKeys(['name', 'genre', 'tags', 'visibility', 'createdAt', 'updatedAt'])
+          && requireKeys(['name', 'genres', 'tags', 'visibility', 'createdAt', 'updatedAt'])
           && isStr(data().name, 1, 50)
-          && data().genre in genres()
+          && data().genres is list && data().genres.size() >= 1 && data().genres.size() <= 3
+          && data().genres.hasOnly(plantGenres())
+          && data().genres.toSet().size() == data().genres.size()   // 重複なし
           && optStr('variety', 80)
           && optStr('source', 100)            // 入手先(非公開。公開は scope=='source' のときのみサーバーが書き出す)
           && optStr('locationName', 30)       // 置き場所の名前だけ。住所は持たない

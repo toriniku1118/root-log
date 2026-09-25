@@ -8,7 +8,7 @@ Plant plant(String name, {String? location, DateTime? createdAt}) {
   return Plant(
     id: name,
     name: name,
-    genre: PlantGenre.foliage,
+    genres: const {PlantGenre.foliage},
     tags: const {},
     visibility: const PlantVisibility.privateDefault(),
     createdAt: at,

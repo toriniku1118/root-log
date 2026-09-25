@@ -17,10 +17,17 @@ void main() {
     });
   });
 
-  test('観葉植物全般は例つきで表示し、初期ジャンルになっている', () {
-    expect(PlantGenre.foliage.labelWithExamples, '観葉植物全般(パキラ・モンステラ・ポトス等)');
+  test('観葉植物全般とアロイドは例つきで表示する。モンステラ・ポトスはアロイド。初期ジャンルは観葉植物全般', () {
+    expect(PlantGenre.foliage.labelWithExamples, '観葉植物全般(パキラ・ゴムの木・ガジュマル・サンスベリア等)');
+    expect(PlantGenre.aroid.labelWithExamples, 'アロイド(モンステラ・ポトス・アンスリウム・アロカシア等)');
     expect(PlantGenre.caudex.labelWithExamples, '塊根');
     expect(defaultPlantGenre, PlantGenre.foliage);
+  });
+
+  test('株に選べるのは、実生を除く8つ(実生はタグで表す)', () {
+    expect(PlantGenre.plantChoices.length, 8);
+    expect(PlantGenre.plantChoices, isNot(contains(PlantGenre.seedling)));
+    expect(PlantGenre.plantChoices.first, PlantGenre.foliage);
   });
 
   test('id からジャンルを引ける。知らない id は null', () {
