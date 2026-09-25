@@ -8,6 +8,11 @@
 #
 # Android 実機:USB でつなぎ、スマホ側で「USB デバッグ」を許可する。
 #   ホスト側で adb サーバーが動いていると取り合いになるため、ホストの adb は止めておく(adb kill-server)。
+#
+# プロジェクト名を固定している:git worktree のディレクトリ名に関係なく、イメージ・キャッシュ・adb の認証キーを共有するため。
+# node_modules も共有されるので、package-lock.json が変わったら npm ci(または npm install)で合わせる。
+name: rootlog
+
 services:
   flutter:
     build:
