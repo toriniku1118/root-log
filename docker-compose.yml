@@ -36,7 +36,9 @@ services:
     tty: true
 
   # ローカルで画面を動かして確認する(実機なし)。Windows のブラウザで http://localhost:3000 を開く。
-  #   docker compose run --rm --service-ports web      # r:ホットリロード R:ホットリスタート q:終了
+  #   docker compose run --rm --service-ports web      # コードを直したら、ターミナルで r(再ビルド。約30秒)→ ブラウザを再読み込み(F5)。q:終了
+  # リリース版で動かしている:開発用の版(デバッグ)は、この環境の Windows のブラウザで真っ白になった(原因は特定できず。
+  # 私の環境の Chrome では描画された)。リリース版は同じブラウザで描画され、通信も少なく速い。ホットリロードはできない。
   # Docker Desktop の network_mode: host は「Docker の仮想マシン」のネットワークで、WSL・Windows から届かないため、
   # ports で公開する。公開は自分の PC(127.0.0.1)だけ。Firestore エミュレーターが 8080 を使うので、ここは 3000。
   web:
@@ -53,7 +55,7 @@ services:
       - pub-cache:/home/dev/.pub-cache
     ports:
       - "127.0.0.1:3000:3000"
-    command: flutter run -d web-server --web-hostname 0.0.0.0 --web-port 3000
+    command: flutter run -d web-server --release --web-hostname 0.0.0.0 --web-port 3000
     stdin_open: true
     tty: true
 
