@@ -10,7 +10,7 @@
 | `docs/terms-draft.md` | テスト版の利用規約草案 |
 | `firebase/firestore.rules` | Firestore の権限ルール(デフォルト拒否) |
 | `firebase/storage.rules` | Cloud Storage の権限ルール(デフォルト拒否) |
-| `firebase/tests/` | 権限ルールの自動テスト(Firestore 43件、Storage 14件) |
+| `firebase/tests/` | 権限ルールの自動テスト(Firestore 44件、Storage 14件) |
 | `firebase/functions/src/index.ts` | サーバー処理(写真のメタデータ削除・来歴判定、写真の削除、植物削除の後片付け、公開用データの書き出し、アカウント削除) |
 
 ## 権限ルールのテストの実行
