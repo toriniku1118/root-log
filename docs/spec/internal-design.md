@@ -48,7 +48,7 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 
 | パス | 内容 | アプリから | サーバーから |
 |---|---|---|---|
-| `users/{uid}` | 表示名・年齢区分・好きなジャンル・都道府県・通知設定(`notify`)・課金状態(`plan`) | 本人が作成・更新(年齢区分・課金状態は不可。削除は不可) | 課金状態を書く。削除は `deleteAccount` |
+| `users/{uid}` | 表示名・年齢区分・好きなジャンル・都道府県・通知設定(`notify`)・課金状態(`plan`)・公開の説明を確認した日時(`publishAckAt`。任意。サーバー時刻で1回だけ書け、後から変更・削除できない。2026-09-26) | 本人が作成・更新(年齢区分・課金状態は不可。削除は不可) | 課金状態を書く。削除は `deleteAccount` |
 | `users/{uid}/plants/{plantId}` | 株 | 本人が作成・更新・削除(来歴の印は不可) | 来歴の印(`hasProvenance`)を書く |
 | `…/logs/{logId}` | 記録 | 本人が作成・更新・削除(種類・記録時刻は変更不可) | 後片付け |
 | `…/photos/{photoId}` | 写真の記録 | 読むだけ | 作成・削除 |
@@ -73,7 +73,7 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 | `purchasePrice` | `purchasePrice` | 整数(円)、0〜99,999,999、または `null` | 任意。**非公開。公開用データには出さない**(内部設計 3.5)。2026-09-26 に追加(実装済み・#50) |
 | `health` | `health` | `initial` `good` `watch` `bad` `recovering` のどれか | 任意(未設定は `initial` として扱う)。作成時はアプリが `initial` で書く。2026-09-26 に追加(実装済み・#50) |
 | `tags` | `tags` | `rescue` / `seedling` の配列、10個まで | 必須 |
-| `visibility` | `visibility.public`、`visibility.scope` | 真偽値、`photos` / `history` / `source` | 必須。作成時は `public: false`、`scope: photos` |
+| `visibility` | `visibility.public`、`visibility.scope` | 真偽値、`photos` / `history` / `source` | 必須。作成時は `public: true`、`scope: photos`(2026-09-26 に初期公開へ変更。書き出しは、本人が公開の説明を確認した後だけ。`publishAckAt`) |
 | `createdAt` / `updatedAt` | `createdAt` / `updatedAt` | サーバー時刻 | 必須。ルールが `request.time` と一致を要求する |
 | (持たない) | `hasProvenance` | 真偽値 | サーバーだけが書く。アプリの `Plant` は持たず、書き戻さない |
 
@@ -119,12 +119,12 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 | 操作 | 内容 | 例外 |
 |---|---|---|
 | `watchAll()` | 株の一覧を流す。購読した時点の内容がすぐ流れ、変更のたびに新しい一覧が流れる | — |
-| `add(input)` | 株を追加する。必ず非公開 | 条件を満たさないとき `PlantValidationException`(1件も増えない) |
+| `add(input)` | 株を追加する。初期公開(範囲は写真のみ) | 条件を満たさないとき `PlantValidationException`(1件も増えない) |
 | `update(id, input)` | 株を更新する。共有設定・作成日時は変えない。更新日時は進む | 存在しないとき `PlantNotFoundException`。条件を満たさないとき `PlantValidationException`(元の内容が残る) |
 | `delete(id)` | 株を削除する。存在しなくてもエラーにしない | — |
 
 ### 4.2 Firestore 版に必要なこと(権限ルールとの取り決め)
-1. **作成**:`visibility.public` は `false`。`hasProvenance` は含めない。`createdAt` と `updatedAt` はサーバー時刻(`FieldValue.serverTimestamp()`)。
+1. **作成**:`visibility.public` は `true`、`scope` は `photos`。`hasProvenance` は含めない。`createdAt` と `updatedAt` はサーバー時刻(`FieldValue.serverTimestamp()`)。
 2. **更新は `update` か `set(merge)`**:全体を上書きすると、サーバーが付けた `hasProvenance` が消え、ルールに拒否される(`unchanged(['createdAt','hasProvenance'])`)。変えた項目だけを書く。共有設定は、共有設定の画面だけが書く。
 3. **項目を空にする**:任意の項目は、書かない(未設定)か `null` のどちらもルールを通る。空欄は `null` にして書く。
 4. **文字数**:ルールの `size()` は UTF-16 の単位で数える(絵文字は2文字分)。アプリの `validatePlantInput` も同じ数え方(Dart の `length`)。実測は `firebase/tests/firestore.rules.test.ts` にある。
@@ -198,7 +198,7 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 | `processUpload` | `uploads/` への保存 | 画像の形式の確認(JPEG/PNG、4,000万画素まで)・メタデータの削除・縮小(無料1600px・有料3000px)・来歴の判定・写真の記録の作成・元画像の削除。1インスタンスで1枚ずつ | 写真の記録が数秒後にできる |
 | `deletePhoto` | アプリからの呼び出し(App Check 必須) | 写真と公開コピーの削除、`systemLogs` に来歴の欠落を記録 | 写真を消す |
 | `onPlantDeleted` | 株の削除 | 写真・記録・公開用データの後片付け | 株を消すと、関連も消える |
-| `onPlantWritten` / `onPlantLogWritten` | 株・記録の作成・更新 | 公開を選んだ株だけ、選んだ範囲を `publicPlants` に書き出す。非公開に戻したら、公開用データと写真のコピーを削除 | (ステップ3まで、アプリは参照しない) |
+| `onPlantWritten` / `onPlantLogWritten` | 株・記録の作成・更新 | 公開を選んだ株だけ、選んだ範囲を `publicPlants` に書き出す(本人が公開の説明を確認済み=`users/{uid}.publishAckAt` があるときだけ。確認前は書き出さず、あれば消す。確認した時点で、公開中の株をまとめて書き出す)。非公開に戻したら、公開用データと写真のコピーを削除 | (ステップ3まで、アプリは参照しない) |
 | `deleteAccount` | アプリからの呼び出し(App Check 必須) | 公開用データ・写真・記録・ログイン情報をすべて削除 | アカウントを消す |
 
 - 来歴の判定の定数(`firebase/functions/src/index.ts`):撮影時刻と受信時刻の差は10分以内(`PROVENANCE_MAX_DELAY_MS`)。タイムゾーン情報がない場合は1時間単位のずれ(-14〜+14時間)を許容する。画質は無料 `FREE_LONG_EDGE = 1600`、有料 `PREMIUM_LONG_EDGE = 3000`(`plan == 'premium'` のとき)。
@@ -214,7 +214,7 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 | 1 | ジャンルの id・表示名(9種。株に選べるのは8種) | 一致(`plant_genre_test.dart`、`plant_rules_consistency_test.dart`) | なし |
 | 2 | タグ・公開範囲の id | 一致 | なし |
 | 3 | 文字数の上限(名前50・品種80・入手先100・置き場所30・号数10) | 一致(`PlantLimits` とルール) | なし |
-| 4 | 新規作成は必ず非公開、来歴の印はアプリから持たない | 一致 | なし |
+| 4 | 新規作成は初期公開でもよい(ルールは公開の初期値を強制しない。書き出しの安全策は `publishAckAt`)、来歴の印はアプリから持たない | 一致 | なし |
 | 5 | ホームの機能 | 一覧・置き場所のまとめ・0件の案内・「株を追加」まで。設定への入口(「巡回する」は後回し)・最新写真・前回の撮影からの日数・来歴の印は未 | 外部設計 3.5 に「現状」として明記。要件 REQ-005 は「一部」 |
 | 6 | 株を追加する画面 | 追加の入力・検証・保存まで実装済み(#17)。編集・削除・撮影への遷移は未 | 外部設計 SCR-05 の「現状」に明記 |
 | 7 | 配色の指定 | `app.dart` で `colorSchemeSeed: Colors.green` とダークテーマを指定。開発ルールは「テーマは既定のまま」 | 見た目を作り込む段階(別の作業)で扱う。今は変えない。ワイヤーフレーム方針とのずれとして記録 |

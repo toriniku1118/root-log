@@ -21,10 +21,10 @@
 | 対象 | 観点 | 方法 | 状態 |
 |---|---|---|---|
 | `domain/`(株・ジャンル・タグ・入力検証) | 各項目の条件(上限ちょうどは通り、1文字超えるとエラー)、空欄は「未設定」、絵文字は2文字分、入手日は今日以前、複数のエラーをまとめて返す | `flutter test` | 済み(`plant_input_test.dart`、`plant_genre_test.dart`) |
-| `data/`(保存先) | 追加は必ず非公開、条件を満たさない追加は1件も増えない、更新で id・作成日時・共有設定が変わらない、存在しない株の更新はエラー、id の形式、id の衝突 | `flutter test` | 済み(`plant_repository_test.dart`) |
+| `data/`(保存先) | 追加は初期公開(写真のみ)、条件を満たさない追加は1件も増えない、更新で id・作成日時・共有設定が変わらない、存在しない株の更新はエラー、id の形式、id の衝突 | `flutter test` | 済み(`plant_repository_test.dart`) |
 | `features/home/plant_groups.dart` | 置き場所の名前順・未設定は最後、置き場所の中は追加順、件数が多くても全株が入る | `flutter test` | 済み(`plant_groups_test.dart`) |
 | `functions/src/image.ts`(写真の処理) | 縮小後に EXIF・GPS・機種名が残らない(空振りにならないよう、元画像に入っていることも確認)、向きの反映、長辺の縮小と非拡大、画素数の上限 | `npm test`(`functions/`) | 済み(6件) |
-| `functions/src/publicPlant.ts`(公開用データの作り方) | 購入価格・健康状態・置き場所・鉢の号数が出ない(項目を名指しで選ぶ)、公開範囲ごとの出し分け、健康状態の記録は公開しない | `npm test`(`functions/`) | 済み(9件。わざと価格を書き出す変更を入れて、テストが失敗することを確認した。#50) |
+| `functions/src/publicPlant.ts`(公開用データの作り方) | 購入価格・健康状態・置き場所・鉢の号数が出ない(項目を名指しで選ぶ)、公開範囲ごとの出し分け、健康状態の記録は公開しない、公開の説明を確認するまで書き出さない(`hasPublishAck`。REQ-049) | `npm test`(`functions/`) | 済み(13件。わざと価格を書き出す変更を入れて、テストが失敗することを確認した。#50) |
 | 来歴の判定(`index.ts`) | 撮影元 `camera`、撮影時刻との差10分以内、タイムゾーンあり/なし、重複、撮影時刻なし | 判定の部分を関数として切り出して `functions` の単体テストに加える | 未実装(予定) |
 | 記録の検証(`validatePlantLog`)・水やりの日数の計算・「いつもの間隔」 | 記録の条件、前回からの日数、間隔の出し方(Q4) | `flutter test` | 未実装(予定) |
 | 購入価格の検証(`validatePlantInput`)・健康状態の値(`PlantHealth`) | 購入価格の範囲(0〜99,999,999。上限ちょうどは通り+1・負数はエラー)、健康状態の id・表示名・初期値 | `flutter test` | 済み(`plant_input_test.dart`、`plant_health_test.dart`、`plant_repository_test.dart`。#50) |
@@ -34,7 +34,7 @@
 | 対象 | 観点 | 方法 | 状態 |
 |---|---|---|---|
 | アプリの入力条件 ↔ 権限ルール | ジャンル(好きなジャンル9つ・株に選べる8つ)・ジャンルの個数(1〜3)・タグ・公開範囲・健康状態の id、購入価格の範囲、文字数の上限、「新規は非公開を強制」「来歴の印はサーバー専用」が同じ | `plant_rules_consistency_test.dart`(ルールのファイルを読んで突き合わせる) | 済み(10件) |
-| 権限ルール(Firestore) | 本人以外が読めない・書けない、非公開で作る、課金状態・年齢区分・来歴の印・写真の記録・公開用データをアプリから書けない、記録時刻を偽れない、名前の文字数(絵文字は2文字分)、購入価格の範囲、健康状態の値と記録(種類 health) | `firebase/tests/firestore.rules.test.ts`(エミュレーター) | 済み(44件) |
+| 権限ルール(Firestore) | 本人以外が読めない・書けない、初期公開で作れる、公開の説明の確認日時を偽れない・変えられない(#58)、課金状態・年齢区分・来歴の印・写真の記録・公開用データをアプリから書けない、記録時刻を偽れない、名前の文字数(絵文字は2文字分)、購入価格の範囲、健康状態の値と記録(種類 health) | `firebase/tests/firestore.rules.test.ts`(エミュレーター) | 済み(44件) |
 | 権限ルール(Storage) | 他人の場所にアップロードできない、画像以外は不可、撮影元・株の指定が必須、元画像は本人も読めない、処理済みの写真は本人だけ、公開写真はログインしている人だけ | `firebase/tests/storage.rules.test.ts`(エミュレーター) | 済み(14件) |
 | 画面 ↔ 保存先(メモリ) | ホームが保存先の変更をその場で反映する、追加して戻ると一覧に出る | `home_screen_test.dart` | 済み |
 | サーバー処理の通し | `uploads/` に保存 → `processUpload` → `photos/` と写真の記録ができ、元画像が消える。来歴の判定。`deletePhoto`(欠落の記録)、`onPlantDeleted`(後片付け)、`deleteAccount` | エミュレーター(Firestore・Storage・Functions)上で、テスト用の画像を使って通す | 未実装(予定) |
@@ -60,10 +60,10 @@
 
 | 対象 | コマンド | 結果 |
 |---|---|---|
-| Flutter(単体・ウィジェット) | `docker compose run --rm flutter bash -c "flutter pub get && flutter test"` | 86件合格(`plant_repository_test` 12、`plant_genre_test` 5、`plant_health_test` 3、`plant_input_test` 27、`plant_rules_consistency_test` 10、`plant_groups_test` 4、`home_screen_test` 8、`add_plant_screen_test` 17)。`flutter analyze` も問題なし(2026-09-26、#17) |
-| 権限ルール(Firestore・Storage) | `docker compose run --rm firebase bash -c "npm install && npm test"` | 71件合格(Firestore 57、Storage 14) |
+| Flutter(単体・ウィジェット) | `docker compose run --rm flutter bash -c "flutter pub get && flutter test"` | 87件合格(`plant_repository_test` 12、`plant_genre_test` 5、`plant_health_test` 3、`plant_input_test` 27、`plant_rules_consistency_test` 11、`plant_groups_test` 4、`home_screen_test` 8、`add_plant_screen_test` 17)。`flutter analyze` も問題なし(2026-09-26、#17) |
+| 権限ルール(Firestore・Storage) | `docker compose run --rm firebase bash -c "npm install && npm test"` | 79件合格(Firestore 65、Storage 14) |
 | サーバー処理の型チェック | `docker compose run --rm firebase bash -c "cd functions && npm install && npm run build"` | 合格 |
-| 写真の処理(位置情報の削除など) | `docker compose run --rm firebase bash -c "cd functions && npm install && npm test"` | 15件合格(写真の処理 6、公開用データ 9) |
+| 写真の処理(位置情報の削除など) | `docker compose run --rm firebase bash -c "cd functions && npm install && npm test"` | 19件合格(写真の処理 6、公開用データ 13) |
 
 - 権限ルール(`firebase/`)・サーバー処理(`functions/`)を変えたら、上の3つ(権限ルール・型チェック・写真の処理)を実行する。
 - `sharp` などの写真処理のライブラリを更新したら、必ず写真の処理のテストで位置情報が消えることを確認する。
@@ -75,15 +75,15 @@
 | `app/test/domain/plant_input_test.dart` | 27 | REQ-006、007、047 |
 | `app/test/domain/plant_genre_test.dart` | 5 | REQ-003、007、008 |
 | `app/test/domain/plant_health_test.dart` | 3 | REQ-048 |
-| `app/test/domain/plant_rules_consistency_test.dart` | 10 | REQ-006、007、008、035、037、047、048 |
+| `app/test/domain/plant_rules_consistency_test.dart` | 11 | REQ-006、007、008、035、037、047、048 |
 | `app/test/data/plant_repository_test.dart` | 12 | REQ-006、007、009、047、048 |
 | `app/test/features/home/plant_groups_test.dart` | 4 | REQ-005 |
 | `app/test/features/home/home_screen_test.dart` | 8 | REQ-004、005、006、011 |
 | `app/test/features/plants/add_plant_screen_test.dart` | 17 | REQ-006、007、008、047 |
-| `firebase/tests/firestore.rules.test.ts` | 57 | REQ-006、007、008、009、023、028、035〜038、047、048 |
+| `firebase/tests/firestore.rules.test.ts` | 65 | REQ-006、007、008、009、023、028、035〜038、047、048 |
 | `firebase/tests/storage.rules.test.ts` | 14 | REQ-012、013、016、035 |
 | `firebase/functions/src/image.test.ts` | 6 | REQ-016、020 |
-| `firebase/functions/src/publicPlant.test.ts` | 9 | REQ-007、028、047、048 |
+| `firebase/functions/src/publicPlant.test.ts` | 13 | REQ-007、028、047、048 |
 
 ## 5. 4か月目の判定に使う数字(受入・FN-25)
 判定点は `docs/project/evaluation.md` 5章。ステップ1の判定の基準は「自分が続けている」「テスターの半数以上が4週後も週1回以上撮影」「テスターが来歴記録を『取引で見せたい』と答える」「セキュリティのフェーズ1必須項目を満たす」。
@@ -156,14 +156,15 @@
 | 025 | SCR-08、FN-15 | — | なし(未実装) | システム:時系列の表示 |
 | 026 | SCR-08、FN-16 | — | (後回し) | (後回し。戻すときに、システム:再生) |
 | 027 | SCR-07、FN-17 | Q6 | (後回し) | (後回し。戻すときに、システム:置き場所の順・撮影→水やり→次へ・完了画面。受入:実機(撮影)) |
-| 028 | SCR-09、FN-18 | 3.2、4.2 | ルール:最初から公開状態で作れない・後から公開に変更できる(本人のみ)。単体:更新で共有設定が変わらない | システム:共有設定の画面 |
+| 028 | SCR-09、FN-18 | 3.2、4.2 | ルール:最初から公開状態で作れる(初期公開)・後から公開/非公開に変更できる(本人のみ)。単体:更新で共有設定が変わらない | システム:共有設定の画面 |
+| 049 | SCR-01、FN-18 | 3.2、4.2 | ルール:公開の説明の確認日時(`publishAckAt`)をサーバー時刻以外で書けない・後から変えられない・消せない・他人のものを書けない。関数:確認前は書き出さない・確認後に書き出す | システム:ようこそ画面の確認 |
 | 029 | SCR-09 | — | なし(未実装) | システム:「誰に何が見えるか」の表示 |
 | 030 | SCR-10、FN-19 | 9章 | なし(未実装) | システム:選ばなければオフ。受入:実機 |
 | 031 | SCR-10、SCR-11、FN-20 | 3.4、9章、Q3 | ルール:通知設定にオン/オフ以外の値を入れられない | 単体:1日1回の調整。受入:実機 |
 | 032 | SCR-11、FN-21 | 9章 | なし(未実装) | 単体:間隔の計算。受入:実機 |
 | 033 | SCR-11、FN-22、FN-24 | 3.4 | なし(未実装) | システム:設定の画面 |
 | 034 | SCR-12、FN-23 | 10章 | なし(`deleteAccount` のテストは未実装) | 結合:エミュレーターで `deleteAccount`。システム:確認→削除 |
-| 035 | 5章 | 3.1 | ルール:Firestore 57件・Storage 14件(本人以外が読めない、公開用データを直接書けない、定義していない場所に書けない、など) | 8章 |
+| 035 | 5章 | 3.1 | ルール:Firestore 65件・Storage 14件(本人以外が読めない、公開用データを直接書けない、定義していない場所に書けない、など) | 8章 |
 | 036 | 5章 | 3.1 | ルール:アプリから写真の記録・`systemLogs` を作れない・書き換えられない | — |
 | 037 | 5章 | 3.1 | ルール:課金状態・年齢区分・来歴の印を変更できない | — |
 | 038 | 5章 | 3.4 | ルール:知らない項目(例:住所)を含めて作成できない。単体:置き場所は30文字まで | ルール:都道府県のコード以外を拒否するテスト |
@@ -172,7 +173,7 @@
 | 041 | — | 7章 | (実行環境として、Docker とエミュレーターを整備済み。3章) | 結合:開発用プロジェクトへの接続(順9) |
 | 042 | — | — | なし(Android のみ作成済み) | 受入:実機(iOS・Android) |
 | 043 | — | — | `.gitignore` に `google-services.json`・`GoogleService-Info.plist`・`.env`・`key.properties`・`*.jks` を入れてある。リポジトリに含まれるファイルにもない(2026-09-26 に確認) | PR のチェック項目 |
-| 044 | — | — | 権限ルールの全テスト(71件)を、変更のたびに実行 | PR のチェック項目 |
+| 044 | — | — | 権限ルールの全テスト(79件)を、変更のたびに実行 | PR のチェック項目 |
 | 045 | FN-25 | 7章6 | なし(未実装) | 5章の数字を集計する手順を作り、テスト用のデータで確かめる |
 | 046 | SCR-13、FN-26 | 8章7 | ルール:既存の Storage テスト(「他人は非公開の写真を読めない」など)で、他人の写真を取れないことを確認済み | 単体:期間・株・写真の絞り込み、ファイル名(連番・使えない文字の置き換え)。システム:期間・株・写真の選択、0枚のときの案内、途中でやめても保存済みが残る、削除した写真が入らない(結合:エミュレーターで位置情報が入っていない)。受入:実機で写真フォルダに保存できる |
 | 047 | SCR-05 | 3.5、5章 | ルール(済み):上限ちょうどは通り+1・負数・小数・文字列は拒否、`null` は可、他人が読めない、公開用データを直接書けない。単体(済み):`plant_input_test`・`plant_repository_test`。サーバー(済み):`publicPlant.test.ts` で公開用データに価格が出ない | システム(済み):`add_plant_screen_test`(空欄・範囲外・カンマ・全角、「自分だけが見られます」の表示) |
@@ -186,7 +187,7 @@
 |---|---|
 | 他人が、自分のユーザー情報を読む | 「他人は読めない」「ログインしていない人は読めない」 |
 | 他人が、自分の非公開の株を読む・一覧にする・書き込む | 「他人は非公開の植物を読めない」「他人は植物の一覧を取得できない」「他人の植物リストに書き込めない」 |
-| 最初から公開状態で株を作る | 「最初から公開状態で登録できない」 |
+| 公開の説明を確認する前に、公開用データが書き出される | 関数のテスト「確認日時がなければ書き出さない」。ルールのテスト「確認日時を偽れない・後から変えられない・他人のものを書けない」(#58) |
 | 他人が、記録を読む・書く | 「他人は記録を書けない・読めない」 |
 | 他人が、写真の記録・来歴の欠落の記録を読む | 「他人は写真の記録を読めない」「他人は来歴の欠落の記録(systemLogs)を読めない」 |
 | 本人が、写真の記録を作る・書き換える(撮影日時の偽装) | 「本人でもアプリから写真の記録を作れない」「書き換えられない」 |

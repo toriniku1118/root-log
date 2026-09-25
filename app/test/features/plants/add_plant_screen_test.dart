@@ -68,13 +68,14 @@ bool isChecked(WidgetTester tester, Finder finder) => tester.widget<CheckboxList
 
 void main() {
   group('表示', () {
-    testWidgets('必ず非公開で作られることと、入手先・購入価格が自分だけに見えることを表示する', (tester) async {
+    testWidgets('初期公開(写真のみ)であることと、入手先・置き場所・購入価格は公開されないことを表示する', (tester) async {
       await pumpAddScreen(tester, repo: InMemoryPlantRepository());
-      expect(find.text('この株は非公開です(自分だけが見られます)'), findsOneWidget);
+      expect(find.textContaining('初期設定では、この株の写真だけが公開されます'), findsOneWidget);
+      expect(find.textContaining('入手先・置き場所・購入価格は公開されません'), findsOneWidget);
       expect(find.text('100文字まで。非公開です(自分だけが見られます)'), findsOneWidget);
       expect(find.text('自分だけが見られます。公開されません'), findsOneWidget);
-      // 共有設定は出さない
-      expect(find.textContaining('公開する'), findsNothing);
+      // 共有設定の入力欄は、この画面には出さない(SCR-09)
+      expect(find.byType(Switch), findsNothing);
     });
 
     testWidgets('ジャンルは8つ(実生は出ない)。初期は観葉植物全般が選択済み。例つきで表示する', (tester) async {
@@ -214,7 +215,7 @@ void main() {
   });
 
   group('保存', () {
-    testWidgets('保存すると、非公開の株が追加され、ホームに戻って「追加しました」と一覧に出る', (tester) async {
+    testWidgets('保存すると、初期公開(写真のみ)の株が追加され、ホームに戻って「追加しました」と一覧に出る', (tester) async {
       final repo = InMemoryPlantRepository();
       await pumpAddScreen(tester, repo: repo);
       await tester.enterText(field('name'), 'モンステラ アルボ');
@@ -238,7 +239,8 @@ void main() {
       expect(plant.potSize, '5号');
       expect(plant.purchasePrice, 12800);
       expect(plant.tags, {PlantTag.rescue});
-      expect(plant.visibility.public, isFalse);
+      expect(plant.visibility.public, isTrue); // 初期公開(オプトアウト)
+      expect(plant.visibility.scope, PlantScope.photos); // 範囲は写真のみ
 
       // ホームに戻っている
       expect(field('name'), findsNothing);

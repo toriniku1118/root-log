@@ -64,7 +64,7 @@ service cloud.firestore {
       return ['displayName', 'ageBand', 'genres', 'prefecture', 'notify', 'createdAt', 'updatedAt'];
     }
     function validUserFields() {
-      return onlyKeys(userKeys().concat(['plan']))
+      return onlyKeys(userKeys().concat(['plan', 'publishAckAt']))
         && isStr(data().displayName, 1, 30)
         && data().ageBand in ['13-17', '18+']
         && data().genres is list && data().genres.size() <= 9
@@ -83,10 +83,16 @@ service cloud.firestore {
         && requireKeys(userKeys())
         && !('plan' in data())                // 課金状態はサーバーだけが設定
         && data().createdAt == request.time
+        // 公開の説明を確認した日時(REQ-049)。サーバー時刻でだけ書ける
+        && (!('publishAckAt' in data()) || data().publishAckAt == request.time)
         && validUserFields();
       allow update: if isOwner(uid)
         && validUserFields()
-        && unchanged(['createdAt', 'ageBand', 'plan']);  // 年齢区分・課金状態は変更不可
+        && unchanged(['createdAt', 'ageBand', 'plan'])  // 年齢区分・課金状態は変更不可
+        // 公開の説明を確認した日時:まだなら、サーバー時刻でだけ付けられる。付いたあとは変更も削除もできない
+        && ('publishAckAt' in resource.data
+              ? ('publishAckAt' in data() && data().publishAckAt == resource.data.publishAckAt)
+              : (!('publishAckAt' in data()) || data().publishAckAt == request.time));
       allow delete: if false;                 // アカウント削除はサーバー処理(deleteAccount)で行う
 
       // ---------- 植物 ----------
@@ -124,7 +130,8 @@ service cloud.firestore {
         allow read: if isOwner(uid);
         allow create: if isOwner(uid)
           && validPlantFields()
-          && data().visibility.public == false   // 初期設定は非公開を強制
+          // 公開の初期値(初期公開・写真のみ。2026-09-26)は強制しない。他人に見えるかは、
+          // 本人が公開の説明を確認した後だけ、サーバーが書き出すかどうかで決まる(publishAckAt)
           && !('hasProvenance' in data())        // 来歴の印はサーバーだけが付ける
           && data().createdAt == request.time;
         allow update: if isOwner(uid)

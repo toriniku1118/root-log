@@ -74,11 +74,17 @@ void main() {
     expect(PlantLimits.potSize, limit(RegExp(r"optStr\('potSize', (\d+)\)")));
   });
 
-  test('新規作成は非公開を強制するルールがある(アプリは必ず非公開で作る)', () {
-    expect(rules, contains('data().visibility.public == false'));
-    const v = PlantVisibility.privateDefault();
-    expect(v.public, isFalse);
+  test('新規作成は初期公開(写真のみ)。ルールは公開の初期値を強制しない(書き出しは確認日時の後だけ)', () {
+    expect(rules, isNot(contains('data().visibility.public == false')));
+    const v = PlantVisibility.defaultVisibility();
+    expect(v.public, isTrue);
     expect(v.scope, PlantScope.photos);
+  });
+
+  test('公開の説明を確認した日時(publishAckAt)は、サーバー時刻でだけ書け、付いたあとは変えられない', () {
+    expect(rules, contains("'publishAckAt'"));
+    expect(rules, contains('data().publishAckAt == request.time'));
+    expect(rules, contains('data().publishAckAt == resource.data.publishAckAt'));
   });
 
   test('来歴の印(hasProvenance)はアプリからは持たない(ルールはサーバー専用としている)', () {

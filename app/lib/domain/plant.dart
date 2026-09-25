@@ -12,12 +12,13 @@ enum PlantScope {
   final String id;
 }
 
-/// 共有設定。新しい株は必ず非公開(公開はステップ3で使えるようになる)。
+/// 共有設定。新しい株は初期公開・写真のみ(2026-09-26。オプトアウト)。公開はステップ3で使えるようになる。
+/// 他の人に見えるのは、本人が公開の説明を確認した後だけ(サーバーが書き出す。REQ-049)。
 class PlantVisibility {
   const PlantVisibility({required this.public, required this.scope});
 
-  /// 新規作成時の共有設定:非公開・範囲は写真のみ。
-  const PlantVisibility.privateDefault() : this(public: false, scope: PlantScope.photos);
+  /// 新規作成時の共有設定:公開・範囲は写真のみ。
+  const PlantVisibility.defaultVisibility() : this(public: true, scope: PlantScope.photos);
 
   final bool public;
   final PlantScope scope;

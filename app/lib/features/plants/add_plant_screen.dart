@@ -6,7 +6,7 @@ import '../../domain/plant_input.dart';
 import '../../domain/plant_tag.dart';
 import '../../providers.dart';
 
-/// 株を追加する画面(SCR-05)。保存される株は必ず非公開(共有設定は出さない)。
+/// 株を追加する画面(SCR-05)。保存される株は、初期公開・写真のみ(2026-09-26。オプトアウト)。共有設定はここでは出さない(SCR-09)。
 ///
 /// 入力の条件は `validatePlantInput`(権限ルールと同じ)。エラーは項目の下に日本語で出す。
 class AddPlantScreen extends ConsumerStatefulWidget {
@@ -159,7 +159,11 @@ class _AddPlantScreenState extends ConsumerState<AddPlantScreen> {
         body: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           children: [
-            Text('この株は非公開です(自分だけが見られます)', style: theme.textTheme.bodyMedium),
+            Text(
+              '初期設定では、この株の写真だけが公開されます(公開の説明を確認したあとから、他の人に見えます)。'
+              '株ごとに、いつでも非公開にできます。入手先・置き場所・購入価格は公開されません。',
+              style: theme.textTheme.bodyMedium,
+            ),
             const SizedBox(height: 16),
             TextField(
               key: const Key('field-name'),

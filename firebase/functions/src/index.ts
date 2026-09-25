@@ -5,8 +5,9 @@
  *                     サーバーの受信時刻で「写真の記録」を作る(来歴の元。アプリからは作れない)。
  * 2. deletePhoto    … 本人による写真の削除。来歴の欠落として systemLogs に記録を残す。
  * 3. onPlantDeleted … 植物の削除時に、写真・記録・公開用データを後片付けする。
- * 4. onPlantWritten / onPlantLogWritten
+ * 4. onPlantWritten / onPlantLogWritten / onUserWritten
  *                   … 公開を選んだ植物だけを、選んだ範囲で公開用データ(publicPlants)に書き出す。
+ *                      本人が公開の説明を確認する(users.publishAckAt)までは書き出さない。確認した時点でまとめて書き出す。
  * 5. deleteAccount  … アカウント削除(App Store の要件)。本人のデータをすべて削除する。
  *
  * セキュリティ要件:「植物アプリ_セキュリティ要件」4・5・10章。
@@ -23,7 +24,7 @@ import { logger } from 'firebase-functions';
 import sharp from 'sharp';
 import exifReader from 'exif-reader';
 import { cleanImage } from './image.js';
-import { buildPublicPlantDoc, type PublicScope } from './publicPlant.js';
+import { buildPublicPlantDoc, hasPublishAck, type PublicScope } from './publicPlant.js';
 import { createHash, randomUUID } from 'node:crypto';
 
 initializeApp();
@@ -259,12 +260,15 @@ async function unpublish(uid: string, plantId: string, photoIds: string[]) {
  */
 async function syncPublicPlant(uid: string, plantId: string): Promise<void> {
   const plantRef = db.doc(`users/${uid}/plants/${plantId}`);
+  const userRef = db.doc(`users/${uid}`);
   const publicRef = db.doc(`publicPlants/${publicPlantId(uid, plantId)}`);
   const plant = await plantRef.get();
+  const user = await userRef.get();
   const photos = await plantRef.collection('photos').orderBy('receivedAt').get();
   const photoIds = photos.docs.map((d) => d.id);
 
-  if (!plant.exists || plant.get('visibility.public') !== true) {
+  // 公開の初期値は「公開」だが、本人が公開の説明を確認する(publishAckAt)までは書き出さない
+  if (!plant.exists || plant.get('visibility.public') !== true || !hasPublishAck(user.data())) {
     await unpublish(uid, plantId, photoIds);
     return;
   }
@@ -304,7 +308,8 @@ async function syncPublicPlant(uid: string, plantId: string): Promise<void> {
 
   const stillPublic = await db.runTransaction(async (tx) => {
     const latest = await tx.get(plantRef);
-    if (!latest.exists || latest.get('visibility.public') !== true) return false;
+    const latestUser = await tx.get(userRef);
+    if (!latest.exists || latest.get('visibility.public') !== true || !hasPublishAck(latestUser.data())) return false;
     tx.set(publicRef, doc);
     return true;
   });
@@ -314,6 +319,16 @@ async function syncPublicPlant(uid: string, plantId: string): Promise<void> {
 export const onPlantWritten = onDocumentWritten('users/{uid}/plants/{plantId}', async (event) => {
   if (!event.data?.after.exists) return; // 削除は onPlantDeleted が担当
   await syncPublicPlant(event.params.uid, event.params.plantId);
+});
+
+// 本人が公開の説明を確認した(publishAckAt が新しく付いた)とき、公開中の株をまとめて書き出す
+export const onUserWritten = onDocumentWritten('users/{uid}', async (event) => {
+  const after = event.data?.after;
+  if (!after?.exists) return;
+  if (!hasPublishAck(after.data()) || hasPublishAck(event.data?.before.data())) return;
+  const uid = event.params.uid;
+  const plants = await db.collection(`users/${uid}/plants`).get();
+  for (const p of plants.docs) await syncPublicPlant(uid, p.id);
 });
 
 export const onPlantLogWritten = onDocumentWritten('users/{uid}/plants/{plantId}/logs/{logId}', async (event) => {

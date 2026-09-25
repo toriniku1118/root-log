@@ -2,6 +2,14 @@
 // 「書き出す項目だけを名指しで選ぶ」形にしてある(非公開の項目が、書き足しで漏れないように)。
 // 購入価格(purchasePrice)・健康状態(health)・置き場所・メモ・鉢の号数は、ここでは書き出さない。
 
+/**
+ * 公開用データを書き出してよいか。本人が公開の説明を確認した日時(publishAckAt)があるときだけ true。
+ * 初期公開(オプトアウト)の安全策:確認前は、公開設定が「公開」でも書き出さない(2026-09-26、REQ-049)。
+ */
+export function hasPublishAck(user: Record<string, unknown> | undefined): boolean {
+  return user?.publishAckAt != null;
+}
+
 export type PublicScope = 'photos' | 'history' | 'source';
 
 export interface PublicPhoto {
