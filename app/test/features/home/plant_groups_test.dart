@@ -10,7 +10,7 @@ Plant plant(String name, {String? location, DateTime? createdAt}) {
     name: name,
     genres: const {PlantGenre.foliage},
     tags: const {},
-    visibility: const PlantVisibility.privateDefault(),
+    visibility: const PlantVisibility.defaultVisibility(),
     createdAt: at,
     updatedAt: at,
     locationName: location,

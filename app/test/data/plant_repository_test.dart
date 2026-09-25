@@ -17,7 +17,7 @@ void main() {
     repo = InMemoryPlantRepository(clock: () => clockNow, idGenerator: () => 'id${++idCounter}');
   });
 
-  test('追加すると、正規化された内容・必ず非公開・作成日時つきで保存される', () async {
+  test('追加すると、正規化された内容・初期公開(写真のみ)・作成日時つきで保存される', () async {
     final plant = await repo.add(const PlantInput(
       name: ' モンステラ ',
       genres: {PlantGenre.foliage, PlantGenre.aroid},
@@ -33,7 +33,7 @@ void main() {
     expect(plant.source, isNull);
     expect(plant.locationName, 'リビング');
     expect(plant.tags, {PlantTag.seedling});
-    expect(plant.visibility.public, isFalse);
+    expect(plant.visibility.public, isTrue);
     expect(plant.visibility.scope, PlantScope.photos);
     expect(plant.createdAt, clockNow);
     expect(plant.updatedAt, clockNow);
@@ -125,7 +125,8 @@ void main() {
     expect(updated.genres, {PlantGenre.agave});
     expect(updated.createdAt, created.createdAt);
     expect(updated.updatedAt, DateTime(2026, 9, 26));
-    expect(updated.visibility.public, isFalse);
+    expect(updated.visibility.public, created.visibility.public);
+    expect(updated.visibility.scope, created.visibility.scope);
   });
 
   test('存在しない株の更新はエラー。条件を満たさない更新は元の内容が残る', () async {
