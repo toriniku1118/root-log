@@ -22,6 +22,7 @@ import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions';
 import sharp from 'sharp';
 import exifReader from 'exif-reader';
+import { cleanImage } from './image.js';
 import { createHash, randomUUID } from 'node:crypto';
 
 initializeApp();
@@ -133,12 +134,8 @@ export const processUpload = onObjectFinalized(
       const isPremium = (await db.doc(`users/${uid}`).get()).get('plan') === 'premium';
       const longEdge = isPremium ? PREMIUM_LONG_EDGE : FREE_LONG_EDGE;
 
-      // 位置情報を含むメタデータをすべて削除(sharp は withMetadata を指定しない限りメタデータを書き出さない)
-      const cleaned = await input()
-        .rotate() // 向きの情報を画像に反映してから、向きの情報も削除
-        .resize({ width: longEdge, height: longEdge, fit: 'inside', withoutEnlargement: true })
-        .jpeg({ quality: 82, mozjpeg: true })
-        .toBuffer({ resolveWithObject: true });
+      // 位置情報を含むメタデータをすべて削除して縮小する
+      const cleaned = await cleanImage(original, longEdge, MAX_INPUT_PIXELS);
       const sha256 = createHash('sha256').update(cleaned.data).digest('hex');
 
       // 来歴の判定

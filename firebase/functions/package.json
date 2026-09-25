@@ -8,13 +8,14 @@
   },
   "scripts": {
     "build": "tsc",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "rm -rf .test-build && tsc -p tsconfig.test.json && node --test \".test-build/**/*.test.js\""
   },
   "dependencies": {
     "exif-reader": "^2.0.0",
-    "firebase-admin": "^13.0.0",
-    "firebase-functions": "^6.0.0",
-    "sharp": "^0.33.0"
+    "firebase-admin": "^14.5.0",
+    "firebase-functions": "^7.4.0",
+    "sharp": "^0.35.4"
   },
   "devDependencies": {
     "typescript": "^5.6.0"
