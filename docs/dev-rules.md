@@ -27,6 +27,8 @@ RootLog の開発の進め方。`CLAUDE.md` の「開発の進め方」の詳細
 - worktree は `.claude/worktrees/` 以下に作る(Git に含めない)。
 - ブランチ名:`<種類>/<issue番号>-<英数字の短い説明>` 例)`feat/12-plant-list`、`docs/3-dev-rules`。種類は `feat` / `fix` / `docs` / `chore`。
 - 1つの worktree・ブランチ・PR は、1つの issue(または sub-issue)に対応させる。
+- Docker は、どの worktree からでも同じイメージ・キャッシュ・adb の認証キーを使う(`docker-compose.yml` で `name: rootlog` に固定)。ただし `node_modules` も共有されるので、ブランチで `package-lock.json` が変わったら `npm ci` で合わせる。
+- 作業が終わった worktree に、ディレクトリ名付きの Docker イメージやボリュームが残っていたら削除する。
 
 ## 4. PR とマージ
 - PR の本文に、`Closes #issue番号`、変更の概要、確認したこと(テスト結果など)を書く(テンプレート:`.github/pull_request_template.md`)。
