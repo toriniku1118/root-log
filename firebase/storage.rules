@@ -1,0 +1,40 @@
+rules_version = '2';
+
+// RootLog Cloud Storage セキュリティルール(ステップ1 版)
+// 写真の流れ:
+//   アプリ → uploads/{uid}/{uploadId}(本人が作成のみ。読めない)
+//   → サーバー処理(processUpload)が位置情報などのメタデータを削除・縮小して
+//     photos/{uid}/{photoId}.jpg に保存(本人だけ読める)
+//   → 公開を選んだ株の写真だけ、サーバーが public/{uid}/{photoId}.jpg に書き出す
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    match /uploads/{uid}/{uploadId} {
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.size > 0
+        && request.resource.size < 15 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png)')
+        && request.resource.metadata != null
+        && request.resource.metadata.keys().hasAll(['plantId', 'source'])
+        && request.resource.metadata.plantId.matches('^[A-Za-z0-9_-]{1,64}$')
+        && request.resource.metadata.source in ['camera', 'gallery'];
+      // アップロード元の画像(位置情報を含みうる)は誰も読めない・上書きできない
+      allow read, update, delete: if false;
+    }
+
+    match /photos/{uid}/{fileName} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    match /public/{uid}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

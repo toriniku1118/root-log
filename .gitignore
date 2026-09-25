@@ -1,0 +1,15 @@
+node_modules/
+firebase/functions/lib/
+*.log
+.firebaserc
+firebase-debug.log*
+ui-debug.log
+# 秘密情報
+.env
+*.env
+service-account*.json
+GoogleService-Info.plist
+google-services.json
+firebase/.emulator-data/
+app/ios/Runner/GoogleService-Info.plist
+app/android/app/google-services.json

@@ -1,0 +1,97 @@
+# CLAUDE.md — RootLog(仮名)
+
+このリポジトリで作業する Claude Code 向けの前提情報。詳細な経緯・根拠は `docs/project/` にある(claude.ai の Project「副業調査」から書き出したもの。2026-09-25 時点)。
+回答・コメント・ドキュメントは日本語で、専門用語を避けた平易な表現で書く。
+
+## プロダクト
+- 観葉植物に「ハマっている層」向けのアプリ。成長記録と「株の来歴」(親株・子株・発根・実生の経過を、撮影日時つきで残す)を核に、記録の見せ合い、レア植物の入荷情報、イベント、売買・交換へ広げる。
+- 差別化の核:取引は記録を公開している人だけが使え、相手の株の来歴を見て取引できること(品種偽装・写真の使い回し対策)。
+- 目標:副業として年20万円の利益(2年目までが現実的な目標)。収益の柱は有料プラン(月480円)と取引(手数料5%・出品オプション1回200円)。広告は補助。
+- 開発者は1人、週3〜7時間。機能を増やすより、ステップごとに小さく作って確かめる。
+
+## ドキュメント名の対応
+各ドキュメントの本文では、Project 上の名前(「植物アプリ_○○」など)で互いを参照している。リポジトリ内のファイルとの対応は次のとおり。
+| 本文中の名前 | ファイル |
+|---|---|
+| 植物アプリ_コンセプト | `docs/project/concept.md` |
+| 植物アプリ_開発の決め事 | `docs/project/decisions.md` |
+| 植物アプリ_セキュリティ要件 | `docs/project/security-requirements.md` |
+| 植物アプリ_市場規模と収益見通し_2026-09 | `docs/project/market-and-revenue.md` |
+| 植物アプリ_総合評価_2026-09 | `docs/project/evaluation.md` |
+| 植物アプリ_SNSニーズ調査_2026-09 | `docs/project/sns-needs-survey.md` |
+| RootLog_ステップ0_設計 | `docs/step0-design.md` |
+| RootLog_利用規約_草案 / RootLog_プライバシーポリシー_草案 | `docs/terms-draft.md` / `docs/privacy-policy-draft.md` |
+- ファイル名は文字化けやツールの不具合を避けるため英数字にしている。新しいファイルも英数字の名前にする。
+
+## 最優先の原則:セキュリティ
+`docs/project/security-requirements.md` を必ず守る。機能追加・納期より優先する。
+1. デフォルト拒否。アクセス制御はサーバー側(Firestore / Storage のルール、Cloud Functions)で強制し、画面で隠すだけにしない。
+2. 非公開データは `users/{uid}` 以下。公開用データ(`publicPlants/{uid}_{plantId}`、`publicProfiles`、Storage の `public/`)はサーバーだけが書き出す。非公開と公開の項目を同じ文書に混ぜない。
+3. 写真の位置情報(EXIF)はサーバー側で必ず削除する。元画像(`uploads/`)は誰も読めず、処理後すぐ削除する。
+4. 来歴の元になる写真の記録(`photos`)はアプリから作れない。サーバーの受信時刻で作り、変更できない。課金状態(`plan`)・年齢区分(`ageBand`)・来歴の印(`hasProvenance`)もアプリから変更できない。
+5. 位置情報は取得しない。地域は都道府県まで。株の価格・コレクションの規模は初期設定で非公開(盗難対策)。
+6. ルールを変えたら、必ず `firebase/tests/` に「見えてはいけないものが見えない」テストを追加し、全件合格を確認する。
+7. APIキー・秘密鍵・`google-services.json`・`GoogleService-Info.plist` をコミットしない。
+- セキュリティ要件の「フェーズ」は旧呼び方。対応:フェーズ1=ステップ1、1.5=ステップ4(同居人共有・課金)、2a=ステップ3、2a+=ステップ4・6(入荷通知・相談)、2b=ステップ5。
+- セキュリティ要件にある「メールでのログイン」は採用しない(開発の決め事で Apple / Google のみに確定)。
+
+## 確定事項(`docs/project/decisions.md` が正)
+| 項目 | 決め事 |
+|---|---|
+| 技術 | Flutter + Firebase(Auth / Firestore / Storage / Functions 第2世代 / App Check / Analytics / AdMob)。リージョン asia-northeast1 |
+| OS | iOS と Android を同時に出す |
+| ログイン | Apple でサインイン、Google でサインイン |
+| ジャンル | 観葉植物全般(foliage)、塊根、アガベ、多肉/サボテン、ビカクシダ、アロイド、珍奇植物、実生、その他 |
+| 年齢 | 13歳以上。売買・交換・手渡しは18歳以上 |
+| 写真 | 枚数無制限。無料は長辺1600px程度に圧縮、有料は高画質(3000px) |
+| 来歴 | アプリ内カメラで撮った写真だけを来歴として扱い、撮影日時を後から変えられない |
+| 通知 | 全種類で原則1日1回まで。通知の許可は最初の撮影のあとに求める。水やり通知は任意(初期オフ) |
+| 共有 | 記録の公開は本人が選ぶ(初期は非公開)。範囲は 写真のみ / 履歴まで / 入手先まで |
+| 取引 | 固定価格と交換のみ(入札形式にしない=古物競りあっせん業の届出を避ける)。代金は自分で預からず決済代行を使う |
+| 開発環境 | Ubuntu PC + Docker(`docker-compose.yml`)。Android は USB 実機。iOS は Codemagic でビルドし TestFlight で配布 |
+| アプリ名 | RootLog(仮名)。正式名はストア公開前に商標・同名アプリを確認して決める |
+
+## 開発ステップ(いまはステップ1の開始前)
+| ステップ | 内容 | 状態 |
+|---|---|---|
+| 0 準備 | 設計・権限ルールと自動テスト・サーバー処理の骨組み・規約草案・Docker 環境 | 作成済み。**テスト・ビルド・Docker は未実行**(最初に実行して確認する) |
+| 1 記録と来歴 | 植物リスト、撮影(ゴースト表示・巡回モード・比較)、栽培ストーリー、来歴記録、実生・復活チャレンジのタグ、水やり記録、共有設定。自分+テスター5〜10人 | 次に着手 |
+| 2 入荷情報とイベント | 入荷情報の投稿、イベント通知、広告。6か月目ごろストア公開 | |
+| 3 記録を見せ合う | 公開プロフィール、来歴の閲覧、品種ページ、反応 | |
+| 4 有料プラン | 入荷通知の拡大、広告非表示、高画質など | |
+| 5 売買・交換 | 記録公開者のみ、来歴の自動添付、レスキュー株区分、決済代行 | |
+| 6 拡大 | 店舗公式アカウント、相談Q&A、Web公開、全国展開 | |
+- 各ステップの判断基準:`docs/project/evaluation.md` 5章。
+- 法令の確認事項(電気通信事業法・資金決済法・古物営業法・種の保存法など):`docs/project/concept.md` の「法令の確認(ステップ別)」。
+
+## リポジトリ構成
+| パス | 内容 |
+|---|---|
+| `docs/step0-design.md` | データ設計、来歴写真の仕組み、サーバー処理、ステップ1の画面12個と流れ、作業順 |
+| `docs/terms-draft.md` / `docs/privacy-policy-draft.md` | テスト版の草案(ストア公開前に専門家確認) |
+| `docs/project/` | コンセプト、開発の決め事、セキュリティ要件、市場規模と収益、総合評価、SNSニーズ調査 |
+| `firebase/` | `firestore.rules`・`storage.rules`、`tests/`(Firestore 43件・Storage 14件)、`functions/src/index.ts` |
+| `app/` | Flutter アプリ(ステップ1で作成。まだ空) |
+| `docker/`・`docker-compose.yml` | 開発用コンテナ(Flutter + Android SDK、Firebase エミュレーター) |
+| `codemagic.yaml` | iOS ビルドと TestFlight 配布 |
+
+## よく使うコマンド
+```bash
+docker compose build
+docker compose run --rm firebase bash -c "npm install && npm test"                       # 権限ルールのテスト
+docker compose run --rm firebase bash -c "cd functions && npm install && npm run build"  # サーバー処理の型チェック
+docker compose up firebase                                                               # エミュレーター(UI: http://localhost:4000)
+docker compose run --rm flutter                                                          # Flutter 開発用コンテナ
+```
+
+## ステップ1で最初にやること
+1. 上の権限ルールのテストと型チェックを実行し、失敗があれば直す(作成環境では実行できていない)。
+2. `app/` に Flutter プロジェクトを作成(`flutter create --org <逆ドメイン> --project-name rootlog .`)。Firebase は開発用・本番用の2プロジェクトに分け、`flutterfire configure` で設定。
+3. `docs/step0-design.md` の画面設計に沿って、サインイン → 年齢 → ジャンル → ホーム → 株を追加 → カメラ(ゴースト表示)→ アップロード → 株の詳細、の順に作る。
+4. 植物の保存は `update` / `set(merge)` を使う(サーバーが付けた `hasProvenance` を消すとルールで拒否される)。
+5. 実機(iOS/Android)で、写真の EXIF 撮影時刻とタイムゾーンが来歴判定(`processUpload`)どおりになるかを確認する。
+
+## 既知の限界・注意
+- 来歴の「アプリ内カメラで撮影」「EXIF の撮影時刻」は端末側の情報で、改造アプリなら偽装できる。保証できるのはサーバーの受信時刻だけ。画面では「この日時までに撮影された写真」と表示する。
+- Storage のデフォルトバケットは東京に作る(Storage トリガーのリージョンと合わせる)。
+- Firebase エミュレーターのコンテナは UID 1000 前提。ホストの UID が違う場合は調整する。

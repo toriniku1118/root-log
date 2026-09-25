@@ -1,0 +1,51 @@
+# iOS 版のビルドと TestFlight への配布(Codemagic の macOS マシンで実行)
+# Ubuntu では iOS 版をビルドできないため、GitHub に push → Codemagic がビルド → 自分の iPhone に TestFlight で届く。
+#
+# 事前準備(Codemagic の画面で設定):
+#   1. Apple Developer Program に登録(年 $99)し、App Store Connect でアプリを作成
+#   2. App Store Connect の API キーを作成し、Codemagic の「Integrations → Developer Portal」に登録(名前:rootlog_asc)
+#   3. Bundle ID(例:jp.example.rootlog)を登録。証明書とプロビジョニングプロファイルは Codemagic に自動で作らせる
+#   4. Firebase の iOS 用設定ファイル(GoogleService-Info.plist)は、リポジトリに入れず
+#      Codemagic の環境変数(グループ名:firebase、変数名:GOOGLE_SERVICE_INFO_PLIST、Base64)に登録
+workflows:
+  ios-testflight:
+    name: iOS → TestFlight
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: rootlog_asc
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      groups:
+        - firebase
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: jp.example.rootlog   # 実際の Bundle ID に変更
+    triggering:
+      events:
+        - tag                                   # v0.1.0 のようなタグを push したときだけビルド(無料枠の節約)
+      tag_patterns:
+        - pattern: 'v*'
+    scripts:
+      - name: Firebase 設定ファイルを配置
+        script: echo $GOOGLE_SERVICE_INFO_PLIST | base64 --decode > app/ios/Runner/GoogleService-Info.plist
+      - name: 依存関係
+        script: cd app && flutter pub get && cd ios && pod install
+      - name: 署名の設定
+        script: xcode-project use-profiles
+      - name: テスト
+        script: cd app && flutter test
+      - name: ビルド
+        script: |
+          cd app
+          flutter build ipa --release \
+            --build-number=$(($(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID") + 1)) \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - app/build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true

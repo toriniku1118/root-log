@@ -1,0 +1,173 @@
+rules_version = '2';
+
+// RootLog Firestore セキュリティルール(ステップ1 版)
+// 原則:
+//  1. デフォルト拒否。明示的に許可したものだけ読み書きできる。
+//  2. 非公開データ(users/**)は本人だけ。公開用データ(public*)はサーバーだけが書く。
+//  3. 来歴の元になる写真の記録(photos)はクライアントから書けない(サーバーが受信時刻で作る)。
+//  4. サーバーが決める項目(plan など)はクライアントから変更できない。
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- 共通の関数 ----------
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+    function data() {
+      return request.resource.data;
+    }
+    function onlyKeys(keys) {
+      return data().keys().hasOnly(keys);
+    }
+    function requireKeys(keys) {
+      return data().keys().hasAll(keys);
+    }
+    function unchanged(keys) {
+      return !data().diff(resource.data).affectedKeys().hasAny(keys);
+    }
+    function isStr(v, minLen, maxLen) {
+      return v is string && v.size() >= minLen && v.size() <= maxLen;
+    }
+    function optStr(key, maxLen) {
+      return !(key in data()) || data()[key] == null || isStr(data()[key], 0, maxLen);
+    }
+    function optBool(m, key) {
+      return !(key in m) || m[key] is bool;
+    }
+
+    // 扱うジャンル(開発の決め事で確定したもの)
+    // foliage=観葉植物全般(パキラ・モンステラ・ポトス・フィカス等)
+    function genres() {
+      return ['foliage', 'caudex', 'agave', 'succulent_cactus', 'platycerium', 'aroid', 'rare', 'seedling', 'other'];
+    }
+    function prefectures() {
+      // 都道府県コード(JIS X 0401: '01'〜'47')。'' は未設定。
+      return ['', '01','02','03','04','05','06','07','08','09','10','11','12','13','14','15','16',
+              '17','18','19','20','21','22','23','24','25','26','27','28','29','30','31','32',
+              '33','34','35','36','37','38','39','40','41','42','43','44','45','46','47'];
+    }
+
+    // ---------- users/{uid}(本人だけ) ----------
+    function userKeys() {
+      return ['displayName', 'ageBand', 'genres', 'prefecture', 'notify', 'createdAt', 'updatedAt'];
+    }
+    function validUserFields() {
+      return onlyKeys(userKeys().concat(['plan']))
+        && isStr(data().displayName, 1, 30)
+        && data().ageBand in ['13-17', '18+']
+        && data().genres is list && data().genres.size() <= 9
+        && data().genres.hasOnly(genres())
+        && data().prefecture in prefectures()
+        && data().notify is map
+        && data().notify.keys().hasOnly(['photo', 'event', 'water', 'weather', 'reaction', 'stock'])
+        && optBool(data().notify, 'photo') && optBool(data().notify, 'event') && optBool(data().notify, 'water')
+        && optBool(data().notify, 'weather') && optBool(data().notify, 'reaction') && optBool(data().notify, 'stock')
+        && data().updatedAt == request.time;
+    }
+
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && requireKeys(userKeys())
+        && !('plan' in data())                // 課金状態はサーバーだけが設定
+        && data().createdAt == request.time
+        && validUserFields();
+      allow update: if isOwner(uid)
+        && validUserFields()
+        && unchanged(['createdAt', 'ageBand', 'plan']);  // 年齢区分・課金状態は変更不可
+      allow delete: if false;                 // アカウント削除はサーバー処理(deleteAccount)で行う
+
+      // ---------- 植物 ----------
+      function plantKeys() {
+        return ['name', 'genre', 'variety', 'acquiredAt', 'source', 'locationName',
+                'potSize', 'tags', 'visibility', 'createdAt', 'updatedAt',
+                'hasProvenance'];   // hasProvenance はサーバーだけが設定(来歴写真がある印)
+      }
+      function validPlantFields() {
+        return onlyKeys(plantKeys())
+          && requireKeys(['name', 'genre', 'tags', 'visibility', 'createdAt', 'updatedAt'])
+          && isStr(data().name, 1, 50)
+          && data().genre in genres()
+          && optStr('variety', 80)
+          && optStr('source', 100)            // 入手先(非公開。公開は scope=='source' のときのみサーバーが書き出す)
+          && optStr('locationName', 30)       // 置き場所の名前だけ。住所は持たない
+          && optStr('potSize', 10)
+          && (!('acquiredAt' in data()) || data().acquiredAt == null || data().acquiredAt is timestamp)
+          && data().tags is list && data().tags.size() <= 10
+          && data().tags.hasOnly(['rescue', 'seedling'])   // rescue=復活チャレンジ、seedling=実生
+          && data().visibility is map
+          && data().visibility.keys().hasOnly(['public', 'scope'])
+          && data().visibility.public is bool
+          && data().visibility.scope in ['photos', 'history', 'source']
+          && data().updatedAt == request.time;
+      }
+
+      match /plants/{plantId} {
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && validPlantFields()
+          && data().visibility.public == false   // 初期設定は非公開を強制
+          && !('hasProvenance' in data())        // 来歴の印はサーバーだけが付ける
+          && data().createdAt == request.time;
+        allow update: if isOwner(uid)
+          && validPlantFields()
+          && unchanged(['createdAt', 'hasProvenance']);
+        allow delete: if isOwner(uid);          // 写真・記録の後片付けはサーバー処理(onPlantDeleted)
+
+        // ---------- 記録(水やり・植え替え等) ----------
+        match /logs/{logId} {
+          function validLog() {
+            return onlyKeys(['type', 'occurredAt', 'recordedAt', 'note', 'stage'])
+              && data().type in ['water', 'repot', 'fertilize', 'prune', 'note', 'stage']
+              && data().occurredAt is timestamp
+              && data().occurredAt <= request.time
+              && optStr('note', 500)
+              && (!('stage' in data()) || data().stage in
+                  ['acquired', 'rooted', 'new_leaf', 'repotted', 'flowered', 'divided', 'recovered', 'died']);
+          }
+          allow read: if isOwner(uid);
+          allow create: if isOwner(uid) && validLog() && data().recordedAt == request.time;
+          allow update: if isOwner(uid) && validLog() && unchanged(['type', 'recordedAt']);
+          allow delete: if isOwner(uid);
+        }
+
+        // ---------- 写真(来歴の元)。サーバーだけが作成・削除 ----------
+        match /photos/{photoId} {
+          allow read: if isOwner(uid);
+          allow write: if false;
+        }
+
+        // ---------- サーバーが残す記録(写真の削除など、来歴の欠落の記録) ----------
+        match /systemLogs/{logId} {
+          allow read: if isOwner(uid);
+          allow write: if false;
+        }
+      }
+    }
+
+    // ---------- 公開用データ(サーバーだけが書き出す) ----------
+    // ステップ3で閲覧機能を公開するまで、アプリからは参照しない。
+    match /publicProfiles/{uid} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+    // ID は「所有者のID_植物ID」(植物IDは利用者が決められるため、他人の公開データを上書きできないようにする)
+    match /publicPlants/{publicId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    // ---------- サーバー専用(写真の重複検出など) ----------
+    match /photoHashes/{hash} {
+      allow read, write: if false;
+    }
+
+    // それ以外はすべて拒否
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

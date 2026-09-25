@@ -1,0 +1,55 @@
+# RootLog 開発環境(Ubuntu PC 用)
+#
+# 使い方:
+#   docker compose build
+#   docker compose run --rm flutter            # Flutter のコンテナに入る
+#   docker compose up firebase                 # Firebase エミュレーターを起動(http://localhost:4000 が管理画面)
+#   docker compose run --rm firebase npm test  # 権限ルールの自動テスト
+#
+# Android 実機:USB でつなぎ、スマホ側で「USB デバッグ」を許可する。
+#   ホスト側で adb サーバーが動いていると取り合いになるため、ホストの adb は止めておく(adb kill-server)。
+services:
+  flutter:
+    build:
+      context: .
+      dockerfile: docker/flutter.Dockerfile
+      args:
+        USER_UID: ${UID:-1000}
+        USER_GID: ${GID:-1000}
+    working_dir: /workspace/app
+    volumes:
+      - ./:/workspace
+      - pub-cache:/home/dev/.pub-cache
+      - gradle-cache:/home/dev/.gradle
+      - android-config:/home/dev/.android      # adb の認証キー(毎回スマホで許可し直さないため)
+      - /dev/bus/usb:/dev/bus/usb              # Android 実機(USB)
+    # USB の Android 実機を adb から扱うため(開発用 PC でのみ使うこと)
+    privileged: true
+    # ホストのネットワークを使う:実機から PC の Firebase エミュレーターへ、PC の IP アドレスで接続できる
+    network_mode: host
+    stdin_open: true
+    tty: true
+
+  firebase:
+    build:
+      context: .
+      dockerfile: docker/firebase.Dockerfile
+    working_dir: /workspace/firebase
+    volumes:
+      - ./:/workspace
+      - firebase-cache:/home/node/.cache/firebase
+      - firebase-node-modules:/workspace/firebase/node_modules
+      - functions-node-modules:/workspace/firebase/functions/node_modules
+    # 初回は依存関係を入れてからエミュレーターを起動する
+    command: >
+      bash -c "mkdir -p .emulator-data && npm install && (cd functions && npm install && npm run build) &&
+               npx firebase emulators:start --project demo-rootlog --import=./.emulator-data --export-on-exit"
+    network_mode: host
+
+volumes:
+  pub-cache:
+  gradle-cache:
+  android-config:
+  firebase-cache:
+  firebase-node-modules:
+  functions-node-modules:
