@@ -6,8 +6,8 @@ FROM ubuntu:24.04
 ARG FLUTTER_VERSION=stable
 # Android コマンドラインツールの版は https://developer.android.com/studio#command-line-tools-only で最新を確認
 ARG ANDROID_CMDLINE_TOOLS=11076708
-ARG ANDROID_PLATFORM=android-35
-ARG ANDROID_BUILD_TOOLS=35.0.0
+ARG ANDROID_PLATFORM=android-36
+ARG ANDROID_BUILD_TOOLS=36.0.0
 # ホストのユーザーと同じ UID/GID にして、作ったファイルの持ち主がずれないようにする
 ARG USER_UID=1000
 ARG USER_GID=1000

@@ -82,7 +82,8 @@
 | `docs/terms-draft.md` / `docs/privacy-policy-draft.md` | テスト版の草案(ストア公開前に専門家確認) |
 | `docs/project/` | コンセプト、開発の決め事、セキュリティ要件、市場規模と収益、総合評価、SNSニーズ調査 |
 | `firebase/` | `firestore.rules`・`storage.rules`、`tests/`(Firestore 43件・Storage 14件)、`functions/src/index.ts` |
-| `app/` | Flutter アプリ(ステップ1で作成。まだ空) |
+| `app/` | Flutter アプリ(Android のみ。アプリ ID は仮の `com.example.rootlog`。Firebase は未設定) |
+| `docs/android-device-wsl2.md` | Windows + WSL2 で Android 実機をつなぐ手順 |
 | `docker/`・`docker-compose.yml` | 開発用コンテナ(Flutter + Android SDK、Firebase エミュレーター) |
 | `codemagic.yaml` | iOS ビルドと TestFlight 配布 |
 
