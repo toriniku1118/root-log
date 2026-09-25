@@ -159,6 +159,17 @@ describe('plants(植物)', () => {
       setDoc(doc(as(ALICE), 'users', ALICE, 'plants', 'p2'), validPlant({ name: 'パキラ', genre: 'foliage', variety: null })),
     );
   });
+  it('名前は50文字まで(絵文字は2文字分。アプリの入力検証と同じ数え方)', async () => {
+    // 同じ書類に続けて書くと2回目以降は「更新」として評価されるため、毎回別の書類にする
+    let n = 0;
+    const create = (name: string) => setDoc(doc(as(ALICE), 'users', ALICE, 'plants', `len${n++}`), validPlant({ name }));
+    await assertSucceeds(create('あ'.repeat(50)));
+    await assertFails(create('あ'.repeat(51)));
+    await assertFails(create(''));
+    // エミュレーターでの実測:size() は UTF-16 の単位で数える(絵文字は2)。アプリ側(Dart の length)も同じ数え方
+    await assertSucceeds(create('🌱'.repeat(25)));
+    await assertFails(create('🌱'.repeat(26)));
+  });
   it('決められたジャンル以外は登録できない', async () => {
     await assertFails(setDoc(doc(as(ALICE), 'users', ALICE, 'plants', 'p2'), validPlant({ genre: 'unknown' })));
   });
