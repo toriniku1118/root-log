@@ -40,7 +40,12 @@ RootLog の開発の進め方。`CLAUDE.md` の「開発の進め方」の詳細
 
 **ローカルでの確認**
 - `flutter test`:ウィジェットテスト・統合テスト。画面の表示・操作・遷移を、画面を出さずに確かめる。
-- ローカル実行:Flutter の Web サーバー(`flutter run -d web-server`)で画面を動かして見る(Windows のブラウザから操作でき、ホットリロードもできる)。環境の整備は別の issue で行う。整うまでは、自動テストで確かめる。
+- ローカル実行:Flutter の Web サーバーで画面を動かして見る(Windows のブラウザから操作でき、ホットリロードもできる)。
+  ```bash
+  docker compose run --rm --service-ports web    # Windows のブラウザで http://localhost:3000 を開く。r:ホットリロード R:ホットリスタート q:終了
+  ```
+  Web は、配布用ではなくローカル確認専用(配布は Android / iOS)。`web` サービスは、`docker-compose.yml` で `127.0.0.1:3000` にだけポートを公開している。
+- Docker Desktop の注意:`network_mode: host` は「Docker の仮想マシン」のネットワークを指すため、WSL・Windows のブラウザから `localhost` で届かない。ブラウザで見たいサービスは `ports` で公開する(実測)。
 - Firebase:ローカルのエミュレーター(`docker compose up firebase`)を使う。開発用・本番用の Firebase プロジェクトへの接続は、ローカルで機能が一通り動いてから。
 
 **実機で確認するとき**(これ以外は、実機なしでマージしてよい)

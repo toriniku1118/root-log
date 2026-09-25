@@ -35,6 +35,28 @@ services:
     stdin_open: true
     tty: true
 
+  # ローカルで画面を動かして確認する(実機なし)。Windows のブラウザで http://localhost:3000 を開く。
+  #   docker compose run --rm --service-ports web      # r:ホットリロード R:ホットリスタート q:終了
+  # Docker Desktop の network_mode: host は「Docker の仮想マシン」のネットワークで、WSL・Windows から届かないため、
+  # ports で公開する。公開は自分の PC(127.0.0.1)だけ。Firestore エミュレーターが 8080 を使うので、ここは 3000。
+  web:
+    build:
+      context: .
+      dockerfile: docker/flutter.Dockerfile
+      args:
+        USER_UID: ${UID:-1000}
+        USER_GID: ${GID:-1000}
+    image: rootlog-flutter
+    working_dir: /workspace/app
+    volumes:
+      - ./:/workspace
+      - pub-cache:/home/dev/.pub-cache
+    ports:
+      - "127.0.0.1:3000:3000"
+    command: flutter run -d web-server --web-hostname 0.0.0.0 --web-port 3000
+    stdin_open: true
+    tty: true
+
   firebase:
     build:
       context: .
