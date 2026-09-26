@@ -116,6 +116,69 @@ void main() {
     });
   });
 
+  group('通知の設定', () {
+    setUp(() async {
+      await repo.signIn(SignInProvider.google);
+      await repo.createProfile(input());
+    });
+
+    test('変わるのは通知設定と更新日時だけ。ほかの通知・登録内容・確認の日時・作成日時は変わらない', () async {
+      final before = (await session()).profile!;
+      clockNow = DateTime(2026, 9, 27, 9);
+      final updated = await repo.updateNotify(const NotifySettings(photo: true));
+      expect(updated.notify.photo, isTrue);
+      expect(updated.notify.water, isFalse);
+      expect(updated.updatedAt, clockNow);
+      expect(updated.displayName, before.displayName);
+      expect(updated.ageBand, before.ageBand);
+      expect(updated.genres, before.genres);
+      expect(updated.prefecture, before.prefecture);
+      expect(updated.publishAckAt, before.publishAckAt);
+      expect(updated.createdAt, before.createdAt);
+      expect((await session()).profile!.notify.photo, isTrue);
+    });
+
+    test('copyWith:一部だけ変えられる', () {
+      const n = NotifySettings(photo: true);
+      final m = n.copyWith(water: true);
+      expect(m.photo, isTrue);
+      expect(m.water, isTrue);
+      expect(m.event, isFalse);
+      expect(n.water, isFalse); // 元は変わらない
+    });
+
+    test('サインインしていない・登録していないと、変えられない', () async {
+      await repo.signOut();
+      await expectLater(repo.updateNotify(const NotifySettings()), throwsA(isA<NotSignedInException>()));
+      final other = InMemoryUserRepository(clock: () => clockNow);
+      await other.signIn(SignInProvider.apple);
+      await expectLater(other.updateNotify(const NotifySettings()), throwsA(isA<NotRegisteredException>()));
+    });
+  });
+
+  group('アカウント削除', () {
+    test('削除すると、サインアウトの状態になり、登録内容も消える。サインインし直すと、初回から(未登録)', () async {
+      await repo.signIn(SignInProvider.google);
+      await repo.createProfile(input());
+      await repo.deleteAccount();
+      final out = await session();
+      expect(out.signedIn, isFalse);
+      expect(out.profile, isNull);
+
+      await repo.signIn(SignInProvider.google);
+      final again = await session();
+      expect(again.signedIn, isTrue);
+      expect(again.registered, isFalse); // 登録内容は残っていない
+      // もう一度、登録できる(年齢区分も選び直せる)
+      final profile = await repo.createProfile(input(age: AgeBand.teen));
+      expect(profile.ageBand, AgeBand.teen);
+    });
+
+    test('サインインしていないと、削除できない', () async {
+      await expectLater(repo.deleteAccount(), throwsA(isA<NotSignedInException>()));
+    });
+  });
+
   test('状態は購読で流れる(サインイン → 登録 → サインアウト)', () async {
     final seen = <String>[];
     final sub = repo.watchSession().listen((s) => seen.add(s.registered ? '登録済み' : s.signedIn ? 'サインイン済み' : 'サインアウト'));

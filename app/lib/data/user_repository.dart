@@ -37,6 +37,14 @@ class NotSignedInException implements Exception {
   String toString() => 'NotSignedInException';
 }
 
+/// 登録していないのに、登録済みの人だけができる操作をしようとしたときに投げる。
+class NotRegisteredException implements Exception {
+  const NotRegisteredException();
+
+  @override
+  String toString() => 'NotRegisteredException';
+}
+
 /// すでに登録済みなのに、もう一度登録しようとしたときに投げる(年齢区分は後から変更できない)。
 class AlreadyRegisteredException implements Exception {
   const AlreadyRegisteredException();
@@ -61,6 +69,14 @@ abstract interface class UserRepository {
   ///
   /// 通知はすべてオフで作る。公開の説明を確認した日時と作成日時は、保存先の時刻で決まる(後から変えられない)。
   Future<UserProfile> createProfile(UserProfileInput input);
+
+  /// 通知の種類ごとのオン/オフを保存する。変わるのは通知設定と更新日時だけ。
+  /// サインインしていなければ [NotSignedInException]、登録していなければ [NotRegisteredException]。
+  Future<UserProfile> updateNotify(NotifySettings notify);
+
+  /// アカウントを削除する(ユーザー情報とサインインが消える。株・記録の削除は `PlantRepository.deleteAll`)。
+  /// 本物では、サーバーの `deleteAccount` がまとめて処理する。サインインしていなければ [NotSignedInException]。
+  Future<void> deleteAccount();
 }
 
 /// メモリ上の保存先(1人分だけ)。アプリを閉じると消える。Firebase 接続前と、テストで使う。
@@ -116,6 +132,25 @@ class InMemoryUserRepository implements UserRepository {
 
   @override
   Future<void> signOut() async {
+    _provider = null;
+    _changes.add(_session());
+  }
+
+  @override
+  Future<UserProfile> updateNotify(NotifySettings notify) async {
+    if (_provider == null) throw const NotSignedInException();
+    final current = _profile;
+    if (current == null) throw const NotRegisteredException();
+    final updated = current.withNotify(notify, updatedAt: _clock());
+    _profile = updated;
+    _changes.add(_session());
+    return updated;
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    if (_provider == null) throw const NotSignedInException();
+    _profile = null;
     _provider = null;
     _changes.add(_session());
   }

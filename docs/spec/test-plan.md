@@ -60,7 +60,7 @@
 
 | 対象 | コマンド | 結果 |
 |---|---|---|
-| Flutter(単体・ウィジェット) | `docker compose run --rm flutter bash -c "flutter pub get && flutter test"` | 256件合格(`plant_repository_test` 15、`plant_genre_test` 5、`plant_health_test` 3、`plant_input_test` 27、`plant_rules_consistency_test` 19、`plant_groups_test` 4、`home_screen_test` 8、`add_plant_screen_test` 17、`edit_plant_screen_test` 14、`plant_log_test` 11、`plant_log_repository_test` 17、`story_test` 6、`plant_detail_screen_test` 25、`care_test` 7、`home_care_test` 11、`visibility_text_test` 10、`plant_visibility_screen_test` 13、`user_profile_test` 13、`user_repository_test` 13、`onboarding_test` 18)。`flutter analyze` も問題なし(2026-09-26、#73) |
+| Flutter(単体・ウィジェット) | `docker compose run --rm flutter bash -c "flutter pub get && flutter test"` | 276件合格(`plant_repository_test` 15、`plant_genre_test` 5、`plant_health_test` 3、`plant_input_test` 27、`plant_rules_consistency_test` 19、`plant_groups_test` 4、`home_screen_test` 8、`add_plant_screen_test` 17、`edit_plant_screen_test` 14、`plant_log_test` 11、`plant_log_repository_test` 19、`story_test` 6、`plant_detail_screen_test` 25、`care_test` 7、`home_care_test` 11、`visibility_text_test` 10、`plant_visibility_screen_test` 13、`user_profile_test` 13、`user_repository_test` 18、`onboarding_test` 18、`settings_test` 13)。`flutter analyze` も問題なし(2026-09-26、#76) |
 | 権限ルール(Firestore・Storage) | `docker compose run --rm firebase bash -c "npm install && npm test"` | 79件合格(Firestore 65、Storage 14) |
 | サーバー処理の型チェック | `docker compose run --rm firebase bash -c "cd functions && npm install && npm run build"` | 合格 |
 | 写真の処理(位置情報の削除など) | `docker compose run --rm firebase bash -c "cd functions && npm install && npm test"` | 19件合格(写真の処理 6、公開用データ 13) |
@@ -77,10 +77,11 @@
 | `app/test/domain/plant_health_test.dart` | 3 | REQ-048 |
 | `app/test/domain/plant_rules_consistency_test.dart` | 19 | REQ-002、006、007、008、023、024、035、037、038、047、048、049 |
 | `app/test/domain/plant_log_test.dart` | 11 | REQ-023、024、048 |
-| `app/test/data/plant_log_repository_test.dart` | 17 | REQ-023、024、025、048 |
+| `app/test/data/plant_log_repository_test.dart` | 19 | REQ-023、024、025、034、048 |
 | `app/test/domain/user_profile_test.dart` | 13 | REQ-001、002、003、038、049 |
-| `app/test/data/user_repository_test.dart` | 13 | REQ-001、002、003、037、049 |
+| `app/test/data/user_repository_test.dart` | 18 | REQ-001、002、003、033、034、037、049 |
 | `app/test/features/onboarding/onboarding_test.dart` | 18 | REQ-001、002、003、038、049 |
+| `app/test/features/settings/settings_test.dart` | 13 | REQ-033、034、040 |
 | `app/test/data/plant_repository_test.dart` | 15 | REQ-006、007、009、028、047、048 |
 | `app/test/features/home/plant_groups_test.dart` | 4 | REQ-005 |
 | `app/test/features/home/home_screen_test.dart` | 8 | REQ-004、005、006、011 |
@@ -174,14 +175,14 @@
 | 030 | SCR-10、FN-19 | 9章 | なし(未実装) | システム:選ばなければオフ。受入:実機 |
 | 031 | SCR-10、SCR-11、FN-20 | 3.4、9章、Q3 | ルール:通知設定にオン/オフ以外の値を入れられない | 単体:1日1回の調整。受入:実機 |
 | 032 | SCR-11、FN-21 | 9章 | なし(未実装) | 単体:間隔の計算。受入:実機 |
-| 033 | SCR-11、FN-22、FN-24 | 3.4 | なし(未実装) | システム:設定の画面 |
-| 034 | SCR-12、FN-23 | 10章 | なし(`deleteAccount` のテストは未実装) | 結合:エミュレーターで `deleteAccount`。システム:確認→削除 |
+| 033 | SCR-11、FN-22、FN-24 | 3.4 | 単体(済み):`user_repository_test`(通知の保存・変わるのは通知と更新日時だけ・未登録はエラー) | システム(済み):`settings_test`(初期オフ・注記・切り替えの保存と開き直し・サインアウト)。通知の実際の動き:実機 |
+| 034 | SCR-12、FN-23 | 10章 | 単体(済み):`user_repository_test`(削除・やり直すと初回から)・`plant_log_repository_test`(全部削除)。`deleteAccount`(サーバー)のテストは未実装 | システム(済み):`settings_test`(説明・二段階の確認・やめる・削除でようこそに戻る・株と記録が消える・失敗時)。結合:エミュレーターで `deleteAccount`(Firebase 接続のとき) |
 | 035 | 5章 | 3.1 | ルール:Firestore 65件・Storage 14件(本人以外が読めない、公開用データを直接書けない、定義していない場所に書けない、など) | 8章 |
 | 036 | 5章 | 3.1 | ルール:アプリから写真の記録・`systemLogs` を作れない・書き換えられない | — |
 | 037 | 5章 | 3.1 | ルール:課金状態・年齢区分・来歴の印を変更できない | — |
 | 038 | 5章 | 3.4 | ルール:知らない項目(例:住所)を含めて作成できない。単体:置き場所は30文字まで | ルール:都道府県のコード以外を拒否するテスト |
 | 039 | — | 7章5 | なし(未実装) | 結合:App Check を必須にした呼び出しが拒否される。受入:実機 |
-| 040 | SCR-11、FN-24 | — | なし(未実装) | システム:全文を読める。受入:テスター配布前に内容を確認 |
+| 040 | SCR-11、FN-24 | — | 単体(済み):`settings_test`(同梱の写しが `docs/` の草案と同じ) | システム(済み):`settings_test`(全文を読める)。受入:テスター配布前に内容を確認 |
 | 041 | — | 7章 | (実行環境として、Docker とエミュレーターを整備済み。3章) | 結合:開発用プロジェクトへの接続(順9) |
 | 042 | — | — | なし(Android のみ作成済み) | 受入:実機(iOS・Android) |
 | 043 | — | — | `.gitignore` に `google-services.json`・`GoogleService-Info.plist`・`.env`・`key.properties`・`*.jks` を入れてある。リポジトリに含まれるファイルにもない(2026-09-26 に確認) | PR のチェック項目 |

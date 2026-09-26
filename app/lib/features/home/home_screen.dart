@@ -9,6 +9,7 @@ import '../../providers.dart';
 import '../plants/care.dart';
 import '../plants/plant_detail_screen.dart';
 import '../plants/plant_form_screen.dart';
+import '../settings/settings_screen.dart';
 import 'plant_groups.dart';
 
 /// ホーム(植物リスト)。株を置き場所ごとにまとめて表示する。
@@ -19,7 +20,16 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final plants = ref.watch(plantsProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text(appName)),
+      appBar: AppBar(
+        title: const Text(appName),
+        actions: [
+          TextButton(
+            key: const Key('open-settings'),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SettingsScreen())),
+            child: const Text('設定'),
+          ),
+        ],
+      ),
       body: plants.when(
         data: (list) => list.isEmpty ? const _EmptyState() : _PlantList(groups: groupPlantsByLocation(list)),
         loading: () => const Center(child: CircularProgressIndicator()),
