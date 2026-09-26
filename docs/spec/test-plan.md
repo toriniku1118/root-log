@@ -60,7 +60,7 @@
 
 | 対象 | コマンド | 結果 |
 |---|---|---|
-| Flutter(単体・ウィジェット) | `docker compose run --rm flutter bash -c "flutter pub get && flutter test"` | 181件合格(`plant_repository_test` 12、`plant_genre_test` 5、`plant_health_test` 3、`plant_input_test` 27、`plant_rules_consistency_test` 14、`plant_groups_test` 4、`home_screen_test` 8、`add_plant_screen_test` 17、`edit_plant_screen_test` 14、`plant_log_test` 11、`plant_log_repository_test` 17、`story_test` 6、`plant_detail_screen_test` 25、`care_test` 7、`home_care_test` 11)。`flutter analyze` も問題なし(2026-09-26、#68) |
+| Flutter(単体・ウィジェット) | `docker compose run --rm flutter bash -c "flutter pub get && flutter test"` | 207件合格(`plant_repository_test` 15、`plant_genre_test` 5、`plant_health_test` 3、`plant_input_test` 27、`plant_rules_consistency_test` 14、`plant_groups_test` 4、`home_screen_test` 8、`add_plant_screen_test` 17、`edit_plant_screen_test` 14、`plant_log_test` 11、`plant_log_repository_test` 17、`story_test` 6、`plant_detail_screen_test` 25、`care_test` 7、`home_care_test` 11、`visibility_text_test` 10、`plant_visibility_screen_test` 13)。`flutter analyze` も問題なし(2026-09-26、#70) |
 | 権限ルール(Firestore・Storage) | `docker compose run --rm firebase bash -c "npm install && npm test"` | 79件合格(Firestore 65、Storage 14) |
 | サーバー処理の型チェック | `docker compose run --rm firebase bash -c "cd functions && npm install && npm run build"` | 合格 |
 | 写真の処理(位置情報の削除など) | `docker compose run --rm firebase bash -c "cd functions && npm install && npm test"` | 19件合格(写真の処理 6、公開用データ 13) |
@@ -78,7 +78,7 @@
 | `app/test/domain/plant_rules_consistency_test.dart` | 14 | REQ-006、007、008、023、024、035、037、047、048 |
 | `app/test/domain/plant_log_test.dart` | 11 | REQ-023、024、048 |
 | `app/test/data/plant_log_repository_test.dart` | 17 | REQ-023、024、025、048 |
-| `app/test/data/plant_repository_test.dart` | 12 | REQ-006、007、009、047、048 |
+| `app/test/data/plant_repository_test.dart` | 15 | REQ-006、007、009、028、047、048 |
 | `app/test/features/home/plant_groups_test.dart` | 4 | REQ-005 |
 | `app/test/features/home/home_screen_test.dart` | 8 | REQ-004、005、006、011 |
 | `app/test/features/plants/add_plant_screen_test.dart` | 17 | REQ-006、007、008、047 |
@@ -86,6 +86,8 @@
 | `app/test/features/plants/story_test.dart` | 6 | REQ-025、048 |
 | `app/test/features/plants/care_test.dart` | 7 | REQ-022 |
 | `app/test/features/home/home_care_test.dart` | 11 | REQ-005、022、048 |
+| `app/test/features/plants/visibility_text_test.dart` | 10 | REQ-028、029 |
+| `app/test/features/plants/plant_visibility_screen_test.dart` | 13 | REQ-028、029 |
 | `app/test/features/plants/plant_detail_screen_test.dart` | 25 | REQ-022、023、024、025、048 |
 | `firebase/tests/firestore.rules.test.ts` | 65 | REQ-006、007、008、009、023、028、035〜038、047、048 |
 | `firebase/tests/storage.rules.test.ts` | 14 | REQ-012、013、016、035 |
@@ -163,9 +165,9 @@
 | 025 | SCR-08、FN-15 | — | 単体(済み):`story_test`(日付ごとのまとめ・並び・健康状態の前の値)。 | システム(済み):`plant_detail_screen_test`(時系列・0件の案内)。写真の表示は未 |
 | 026 | SCR-08、FN-16 | — | (後回し) | (後回し。戻すときに、システム:再生) |
 | 027 | SCR-07、FN-17 | Q6 | (後回し) | (後回し。戻すときに、システム:置き場所の順・撮影→水やり→次へ・完了画面。受入:実機(撮影)) |
-| 028 | SCR-09、FN-18 | 3.2、4.2 | ルール:最初から公開状態で作れる(初期公開)・後から公開/非公開に変更できる(本人のみ)。単体:更新で共有設定が変わらない | システム:共有設定の画面 |
+| 028 | SCR-09、FN-18 | 3.2、4.2 | ルール:最初から公開状態で作れる(初期公開)・後から公開/非公開に変更できる(本人のみ)。単体:更新で共有設定が変わらない | システム(済み):`plant_visibility_screen_test`(初期・選択・保存・戻る確認・株がなくなったとき)。単体(済み):`plant_repository_test`(`setVisibility`) |
 | 049 | SCR-01、FN-18 | 3.2、4.2 | ルール:公開の説明の確認日時(`publishAckAt`)をサーバー時刻以外で書けない・後から変えられない・消せない・他人のものを書けない。関数:確認前は書き出さない・確認後に書き出す | システム:ようこそ画面の確認 |
-| 029 | SCR-09 | — | なし(未実装) | システム:「誰に何が見えるか」の表示 |
+| 029 | SCR-09 | — | 単体(済み):`visibility_text_test`(範囲ごとの説明。サーバーの `publicPlant.ts` が書き出す項目との一致を、ソースを読んで固定) | システム(済み):`plant_visibility_screen_test`(選ぶたびに説明が変わる・非公開・注記) |
 | 030 | SCR-10、FN-19 | 9章 | なし(未実装) | システム:選ばなければオフ。受入:実機 |
 | 031 | SCR-10、SCR-11、FN-20 | 3.4、9章、Q3 | ルール:通知設定にオン/オフ以外の値を入れられない | 単体:1日1回の調整。受入:実機 |
 | 032 | SCR-11、FN-21 | 9章 | なし(未実装) | 単体:間隔の計算。受入:実機 |
