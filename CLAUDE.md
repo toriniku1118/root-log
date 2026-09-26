@@ -101,7 +101,8 @@
 docker compose build
 docker compose run --rm firebase bash -c "npm install && npm test"                       # 権限ルールのテスト
 docker compose run --rm firebase bash -c "cd functions && npm install && npm run build"  # サーバー処理の型チェック
-docker compose run --rm firebase bash -c "cd functions && npm test"                      # 写真処理(位置情報の削除など)のテスト
+docker compose run --rm firebase bash -c "cd functions && npm test"                      # 写真処理(位置情報の削除など)・来歴の判定のテスト
+docker compose run --rm firebase bash -c "npm run test:integration"                      # サーバー処理の通し(エミュレーターで processUpload・公開用データ・削除。約1分)
 docker compose up firebase                                                               # エミュレーター(UI: http://localhost:4000)
 docker compose run --rm flutter                                                          # Flutter 開発用コンテナ
 docker compose run --rm --service-ports web                                              # ローカルで画面を確認(Windows のブラウザで http://localhost:3000。直したら r で再ビルド→F5)

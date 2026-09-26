@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "outDir": ".integration-build", "rootDir": "integration", "sourceMap": false },
+  "include": ["integration"],
+  "exclude": []
+}
