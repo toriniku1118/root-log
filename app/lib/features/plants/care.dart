@@ -11,5 +11,11 @@ int daysSince(DateTime last, DateTime now) {
 /// 日数の表示。例:「今日」「1日前」「3日前」。
 String daysAgoLabel(int days) => days == 0 ? '今日' : '$days日前';
 
+/// ホームの各株に出す、前回の撮影の表示。例:「前回の撮影から3日」「前回の撮影:今日」。
+String shootLine(DateTime last, DateTime now) {
+  final days = daysSince(last, now);
+  return days == 0 ? '前回の撮影:今日' : '前回の撮影から$days日';
+}
+
 /// ホームの各株に出す、前回の水やりの表示。例:「水やり:3日前」。
 String waterLine(DateTime last, DateTime now) => '水やり:${daysAgoLabel(daysSince(last, now))}';

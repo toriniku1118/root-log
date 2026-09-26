@@ -60,7 +60,7 @@
 
 | 対象 | コマンド | 結果 |
 |---|---|---|
-| Flutter(単体・ウィジェット) | `docker compose run --rm flutter bash -c "flutter pub get && flutter test"` | 276件合格(`plant_repository_test` 15、`plant_genre_test` 5、`plant_health_test` 3、`plant_input_test` 27、`plant_rules_consistency_test` 19、`plant_groups_test` 4、`home_screen_test` 8、`add_plant_screen_test` 17、`edit_plant_screen_test` 14、`plant_log_test` 11、`plant_log_repository_test` 19、`story_test` 6、`plant_detail_screen_test` 25、`care_test` 7、`home_care_test` 11、`visibility_text_test` 10、`plant_visibility_screen_test` 13、`user_profile_test` 13、`user_repository_test` 18、`onboarding_test` 18、`settings_test` 13)。`flutter analyze` も問題なし(2026-09-26、#76) |
+| Flutter(単体・ウィジェット) | `docker compose run --rm flutter bash -c "flutter pub get && flutter test"` | 310件合格(`plant_repository_test` 15、`plant_genre_test` 5、`plant_health_test` 3、`plant_input_test` 27、`plant_rules_consistency_test` 19、`plant_groups_test` 4、`home_screen_test` 8、`add_plant_screen_test` 17、`edit_plant_screen_test` 14、`plant_log_test` 11、`plant_log_repository_test` 19、`story_test` 10、`plant_photo_repository_test` 12、`photo_provenance_test` 7、`plant_photos_test` 11、`plant_detail_screen_test` 25、`care_test` 7、`home_care_test` 11、`visibility_text_test` 10、`plant_visibility_screen_test` 13、`user_profile_test` 13、`user_repository_test` 18、`onboarding_test` 18、`settings_test` 13)。`flutter analyze` も問題なし(2026-09-26、#80) |
 | 権限ルール(Firestore・Storage) | `docker compose run --rm firebase bash -c "npm install && npm test"` | 79件合格(Firestore 65、Storage 14) |
 | サーバー処理の型チェック | `docker compose run --rm firebase bash -c "cd functions && npm install && npm run build"` | 合格 |
 | 写真の処理(位置情報の削除など) | `docker compose run --rm firebase bash -c "cd functions && npm install && npm test"` | 19件合格(写真の処理 6、公開用データ 13) |
@@ -87,7 +87,10 @@
 | `app/test/features/home/home_screen_test.dart` | 8 | REQ-004、005、006、011 |
 | `app/test/features/plants/add_plant_screen_test.dart` | 17 | REQ-006、007、008、047 |
 | `app/test/features/plants/edit_plant_screen_test.dart` | 14 | REQ-009、010 |
-| `app/test/features/plants/story_test.dart` | 6 | REQ-025、048 |
+| `app/test/features/plants/story_test.dart` | 10 | REQ-025、048 |
+| `app/test/data/plant_photo_repository_test.dart` | 12 | REQ-018、019、025 |
+| `app/test/features/plants/photo_provenance_test.dart` | 7 | REQ-018 |
+| `app/test/features/plants/plant_photos_test.dart` | 11 | REQ-005、018、019、025 |
 | `app/test/features/plants/care_test.dart` | 7 | REQ-022 |
 | `app/test/features/home/home_care_test.dart` | 11 | REQ-005、022、048 |
 | `app/test/features/plants/visibility_text_test.dart` | 10 | REQ-028、029 |
@@ -146,7 +149,7 @@
 | 002 | SCR-02、FN-02 | 3.3 | ルール:「年齢区分は後から変更できない」(Firestore)。単体(済み):`user_profile_test`(年齢区分)・`user_repository_test`(二重に登録できない) | システム(済み):`onboarding_test`(13歳未満は先へ進めない・選ぶまで進めない・注意の表示)。受入:表示 |
 | 003 | SCR-03、FN-03 | 3.3 | 単体:`plant_genre_test`(9種)・`user_repository_test`(0個でも登録できる)。ルール:観葉植物全般で登録できる | システム(済み):`onboarding_test`(9つ・0個・スキップ・9個すべて) |
 | 004 | 全画面、3.1 | 1章 | システム:`home_screen_test`(日本語・日付選択の日本語) | システム:各画面を作るときに追加 |
-| 005 | SCR-04、FN-04 | 1・2章 | 単体:`plant_groups_test`。システム:`home_screen_test`(0件の案内・置き場所の見出し・各株の表示・その場で更新) | 最新写真・前回の撮影からの日数・来歴の印・「巡回する」(未実装)。前回の水やり・健康状態の表示は済み(`home_care_test`。#68) |
+| 005 | SCR-04、FN-04 | 1・2章 | 単体:`plant_groups_test`。システム:`home_screen_test`(0件の案内・置き場所の見出し・各株の表示・その場で更新) | 最新写真の画像・「巡回する」(未実装)。前回の水やり・健康状態の表示は済み(`home_care_test`。#68)。前回の撮影からの日数・来歴の印は済み(`plant_photos_test`。#80) |
 | 006 | SCR-05、FN-05 | 3.2・4・5章 | 単体:`plant_input_test`、`plant_repository_test`。結合:`plant_rules_consistency_test`、ルール(本人だけ作成・非公開で作成・文字数) | システム(済み):`add_plant_screen_test`(必須・上限・二重登録・入手日・戻る確認ほか)。受入:実機・Web で確認 |
 | 007 | SCR-03、SCR-05 | 3.2 | 単体:`plant_genre_test`(9種・株に選べる8種)、`plant_input_test`(1〜3個)。結合:`plant_rules_consistency_test`。ルール:1〜3個は通り、0個・4個・重複・知らない値・実生は拒否、旧項目 `genre` は拒否 | システム(済み):`add_plant_screen_test`(初期選択・1〜3個・実生が出ない)。受入:実機・Web で確認 |
 | 008 | SCR-05 | 3.2 | 単体:`plant_genre_test`(タグ)。結合:`plant_rules_consistency_test`(タグの id)。ルール:「provenance」タグは付けられない | システム(済み):`add_plant_screen_test`(タグの選択と保存) |
@@ -159,14 +162,14 @@
 | 015 | SCR-06、FN-10 | — | なし(未実装) | システム:比較表示 |
 | 016 | SCR-06 | 8・10章 | 単体:`image.test`(EXIF・GPS・機種名が残らない)。結合:Storage ルール(元画像は本人も読めない・上書き削除不可) | 結合:エミュレーターで `processUpload` を通す |
 | 017 | SCR-06、FN-11 | 10章 | ルール:アプリから写真の記録を作れない・書き換えられない | 単体:来歴の判定の関数。結合:`processUpload` の通し。受入:実機で撮影時刻とタイムゾーン |
-| 018 | SCR-04、SCR-08、FN-11 | 8章 4、10章 | なし(未実装) | システム:外部設計 3.7.1 の表示(理由ごと) |
-| 019 | SCR-08、FN-12 | 10章 | ルール:`systemLogs` は他人に読めない・アプリから書けない | 結合:`deletePhoto`(欠落の記録) |
+| 018 | SCR-04、SCR-08、FN-11 | 8章 4、10章 | 単体(済み):`photo_provenance_test`(文言・受信時刻の書式・「この日時までに」を来歴にならない写真に使わない・理由と撮影元の id がサーバー(`index.ts`・`storage.rules`)と同じ)、`plant_photo_repository_test`(来歴の印を写真から数え直す・編集で消えない)。システム(済み):`plant_photos_test`(来歴つきの印と文言・4つの理由ごとの文言・ホームの「来歴あり」)。「確認中」は未 |
+| 019 | SCR-08、FN-12 | 10章 | ルール:`systemLogs` は他人に読めない・アプリから書けない。単体(済み):`plant_photo_repository_test`(削除で数が増える・存在しない写真はエラーで数も増えない・株の削除で消える) | 結合:`deletePhoto`(欠落の記録)は Firestore 接続のとき。システム(済み):`plant_photos_test`(拡大・確認・「やめる」で残る・削除して「削除された写真があります(1枚)」・ホームの来歴あり消える) |
 | 020 | — | 10章 | 単体:`image.test`(長辺の縮小・拡大しない) | 結合:画質の区別を続ける場合、無料/有料で画質が変わる(未決) |
 | 021 | 3.1 | — | (広告の仕組みを入れていないことをレビューで確認) | 広告を入れるステップ2で、撮影から保存までに出ないことを確認 |
 | 022 | FN-14 | Q4 | ルール:水やりの記録を本人が作れる | 単体:前回からの日数は済み(`care_test`。#68)、「いつもの間隔」は未(Q4)。システム:詳細の1タップ(`plant_detail_screen_test`。#65)・ホームの長押しと取り消し・日数の表示(`home_care_test`。#68)は済み(巡回モードは後回し) |
 | 023 | SCR-08、FN-13 | 3.3 | ルール:未来の日時は作れない・記録時刻を偽れない・種類と記録時刻は変えられない・`system` 種類は作れない・他人は読み書きできない | 単体(済み):`plant_log_test`(検証)・`plant_log_repository_test`(保存先)。結合(済み):`plant_rules_consistency_test`(種類・段階・メモの上限)。システム(済み):`plant_detail_screen_test`(水やり1タップ・植え替え/肥料/剪定/メモの追加・メモ必須・500文字・日付選択・編集・削除。#65) |
 | 024 | SCR-08、FN-13 | 3.3 | (段階の値の検証はルールにあるが、専用のテストは未実装) | ルール:決めた段階以外は拒否。単体(済み):`plant_log_test`(段階の値・種類が段階のとき必須)。結合(済み):`plant_rules_consistency_test`(段階の id)。システム(済み):`plant_detail_screen_test`(8つの段階・枯死)。 |
-| 025 | SCR-08、FN-15 | — | 単体(済み):`story_test`(日付ごとのまとめ・並び・健康状態の前の値)。 | システム(済み):`plant_detail_screen_test`(時系列・0件の案内)。写真の表示は未 |
+| 025 | SCR-08、FN-15 | — | 単体(済み):`story_test`(日付ごとのまとめ・並び・健康状態の前の値)。 | システム(済み):`plant_detail_screen_test`(時系列・0件の案内)、`plant_photos_test`(写真の行・記録と混ざる順・日付の見出し。#80)。画像そのものの表示は未 |
 | 026 | SCR-08、FN-16 | — | (後回し) | (後回し。戻すときに、システム:再生) |
 | 027 | SCR-07、FN-17 | Q6 | (後回し) | (後回し。戻すときに、システム:置き場所の順・撮影→水やり→次へ・完了画面。受入:実機(撮影)) |
 | 028 | SCR-09、FN-18 | 3.2、4.2 | ルール:最初から公開状態で作れる(初期公開)・後から公開/非公開に変更できる(本人のみ)。単体:更新で共有設定が変わらない | システム(済み):`plant_visibility_screen_test`(初期・選択・保存・戻る確認・株がなくなったとき)。単体(済み):`plant_repository_test`(`setVisibility`) |
