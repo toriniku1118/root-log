@@ -60,7 +60,7 @@
 
 | 対象 | コマンド | 結果 |
 |---|---|---|
-| Flutter(単体・ウィジェット) | `docker compose run --rm flutter bash -c "flutter pub get && flutter test"` | 132件合格(`plant_repository_test` 12、`plant_genre_test` 5、`plant_health_test` 3、`plant_input_test` 27、`plant_rules_consistency_test` 14、`plant_groups_test` 4、`home_screen_test` 8、`add_plant_screen_test` 17、`edit_plant_screen_test` 14、`plant_log_test` 11、`plant_log_repository_test` 17)。`flutter analyze` も問題なし(2026-09-26、#64) |
+| Flutter(単体・ウィジェット) | `docker compose run --rm flutter bash -c "flutter pub get && flutter test"` | 163件合格(`plant_repository_test` 12、`plant_genre_test` 5、`plant_health_test` 3、`plant_input_test` 27、`plant_rules_consistency_test` 14、`plant_groups_test` 4、`home_screen_test` 8、`add_plant_screen_test` 17、`edit_plant_screen_test` 14、`plant_log_test` 11、`plant_log_repository_test` 17、`story_test` 6、`plant_detail_screen_test` 25)。`flutter analyze` も問題なし(2026-09-26、#65) |
 | 権限ルール(Firestore・Storage) | `docker compose run --rm firebase bash -c "npm install && npm test"` | 79件合格(Firestore 65、Storage 14) |
 | サーバー処理の型チェック | `docker compose run --rm firebase bash -c "cd functions && npm install && npm run build"` | 合格 |
 | 写真の処理(位置情報の削除など) | `docker compose run --rm firebase bash -c "cd functions && npm install && npm test"` | 19件合格(写真の処理 6、公開用データ 13) |
@@ -83,6 +83,8 @@
 | `app/test/features/home/home_screen_test.dart` | 8 | REQ-004、005、006、011 |
 | `app/test/features/plants/add_plant_screen_test.dart` | 17 | REQ-006、007、008、047 |
 | `app/test/features/plants/edit_plant_screen_test.dart` | 14 | REQ-009、010 |
+| `app/test/features/plants/story_test.dart` | 6 | REQ-025、048 |
+| `app/test/features/plants/plant_detail_screen_test.dart` | 25 | REQ-022、023、024、025、048 |
 | `firebase/tests/firestore.rules.test.ts` | 65 | REQ-006、007、008、009、023、028、035〜038、047、048 |
 | `firebase/tests/storage.rules.test.ts` | 14 | REQ-012、013、016、035 |
 | `firebase/functions/src/image.test.ts` | 6 | REQ-016、020 |
@@ -153,10 +155,10 @@
 | 019 | SCR-08、FN-12 | 10章 | ルール:`systemLogs` は他人に読めない・アプリから書けない | 結合:`deletePhoto`(欠落の記録) |
 | 020 | — | 10章 | 単体:`image.test`(長辺の縮小・拡大しない) | 結合:画質の区別を続ける場合、無料/有料で画質が変わる(未決) |
 | 021 | 3.1 | — | (広告の仕組みを入れていないことをレビューで確認) | 広告を入れるステップ2で、撮影から保存までに出ないことを確認 |
-| 022 | FN-14 | Q4 | ルール:水やりの記録を本人が作れる | 単体:前回からの日数・「いつもの間隔」。システム:長押し・詳細から1タップで記録(巡回モードは後回し) |
-| 023 | SCR-08、FN-13 | 3.3 | ルール:未来の日時は作れない・記録時刻を偽れない・種類と記録時刻は変えられない・`system` 種類は作れない・他人は読み書きできない | 単体(済み):`plant_log_test`(検証)・`plant_log_repository_test`(保存先)。結合(済み):`plant_rules_consistency_test`(種類・段階・メモの上限)。システム:記録画面(順3の後半) |
-| 024 | SCR-08、FN-13 | 3.3 | (段階の値の検証はルールにあるが、専用のテストは未実装) | ルール:決めた段階以外は拒否。単体(済み):`plant_log_test`(段階の値・種類が段階のとき必須)。結合(済み):`plant_rules_consistency_test`(段階の id)。システム:段階の記録(順3の後半) |
-| 025 | SCR-08、FN-15 | — | なし(未実装) | システム:時系列の表示 |
+| 022 | FN-14 | Q4 | ルール:水やりの記録を本人が作れる | 単体:前回からの日数・「いつもの間隔」。システム:長押し・詳細から1タップで記録(巡回モードは後回し)。詳細の1タップは済み(`plant_detail_screen_test`。#65)、長押しは未 |
+| 023 | SCR-08、FN-13 | 3.3 | ルール:未来の日時は作れない・記録時刻を偽れない・種類と記録時刻は変えられない・`system` 種類は作れない・他人は読み書きできない | 単体(済み):`plant_log_test`(検証)・`plant_log_repository_test`(保存先)。結合(済み):`plant_rules_consistency_test`(種類・段階・メモの上限)。システム(済み):`plant_detail_screen_test`(水やり1タップ・植え替え/肥料/剪定/メモの追加・メモ必須・500文字・日付選択・編集・削除。#65) |
+| 024 | SCR-08、FN-13 | 3.3 | (段階の値の検証はルールにあるが、専用のテストは未実装) | ルール:決めた段階以外は拒否。単体(済み):`plant_log_test`(段階の値・種類が段階のとき必須)。結合(済み):`plant_rules_consistency_test`(段階の id)。システム(済み):`plant_detail_screen_test`(8つの段階・枯死)。 |
+| 025 | SCR-08、FN-15 | — | 単体(済み):`story_test`(日付ごとのまとめ・並び・健康状態の前の値)。 | システム(済み):`plant_detail_screen_test`(時系列・0件の案内)。写真の表示は未 |
 | 026 | SCR-08、FN-16 | — | (後回し) | (後回し。戻すときに、システム:再生) |
 | 027 | SCR-07、FN-17 | Q6 | (後回し) | (後回し。戻すときに、システム:置き場所の順・撮影→水やり→次へ・完了画面。受入:実機(撮影)) |
 | 028 | SCR-09、FN-18 | 3.2、4.2 | ルール:最初から公開状態で作れる(初期公開)・後から公開/非公開に変更できる(本人のみ)。単体:更新で共有設定が変わらない | システム:共有設定の画面 |
@@ -180,7 +182,7 @@
 | 045 | FN-25 | 7章6 | なし(未実装) | 5章の数字を集計する手順を作り、テスト用のデータで確かめる |
 | 046 | SCR-13、FN-26 | 8章7 | ルール:既存の Storage テスト(「他人は非公開の写真を読めない」など)で、他人の写真を取れないことを確認済み | 単体:期間・株・写真の絞り込み、ファイル名(連番・使えない文字の置き換え)。システム:期間・株・写真の選択、0枚のときの案内、途中でやめても保存済みが残る、削除した写真が入らない(結合:エミュレーターで位置情報が入っていない)。受入:実機で写真フォルダに保存できる |
 | 047 | SCR-05 | 3.5、5章 | ルール(済み):上限ちょうどは通り+1・負数・小数・文字列は拒否、`null` は可、他人が読めない、公開用データを直接書けない。単体(済み):`plant_input_test`・`plant_repository_test`。サーバー(済み):`publicPlant.test.ts` で公開用データに価格が出ない | システム(済み):`add_plant_screen_test`(空欄・範囲外・カンマ・全角、「自分だけが見られます」の表示) |
-| 048 | SCR-08、SCR-04、FN-27 | 3.5 | ルール(済み):5値以外を拒否、記録の種類 `health` は値が必須・ほかの種類では付けられない、他人が読み書きできない。単体(済み):`plant_health_test`。サーバー(済み):健康状態の記録は公開しない | 単体(済み):`plant_log_repository_test`(健康状態の変更で株と記録が同時に変わる・失敗したら両方変わらない)。システム:履歴に「○○ → ○○」と出る(株の詳細の実装のとき) |
+| 048 | SCR-08、SCR-04、FN-27 | 3.5 | ルール(済み):5値以外を拒否、記録の種類 `health` は値が必須・ほかの種類では付けられない、他人が読み書きできない。単体(済み):`plant_health_test`。サーバー(済み):健康状態の記録は公開しない | 単体(済み):`plant_log_repository_test`(健康状態の変更で株と記録が同時に変わる・失敗したら両方変わらない)。システム(済み):`plant_detail_screen_test`(健康状態の変更・「○○ → ○○」・詳細の「健康状態:不調(日付〜)」・メニュー)。ホーム(SCR-04)への表示は未 |
 
 ## 8. 「見えてはいけないものが見えない」テスト
 権限ルールを変えたら追加する(REQ-044)。現状と、これから追加するもの。
