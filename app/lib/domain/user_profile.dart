@@ -58,6 +58,17 @@ class NotifySettings {
   /// 入荷(探している株)。
   final bool stock;
 
+  /// 一部だけ変えた通知設定。
+  NotifySettings copyWith({bool? photo, bool? event, bool? water, bool? weather, bool? reaction, bool? stock}) =>
+      NotifySettings(
+        photo: photo ?? this.photo,
+        event: event ?? this.event,
+        water: water ?? this.water,
+        weather: weather ?? this.weather,
+        reaction: reaction ?? this.reaction,
+        stock: stock ?? this.stock,
+      );
+
   /// 種類の id(ルールの `notify` のキーと同じ)。
   static const keys = ['photo', 'event', 'water', 'weather', 'reaction', 'stock'];
 
@@ -101,6 +112,18 @@ class UserProfile {
   final DateTime publishAckAt;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  /// 通知設定だけを変えたユーザー情報(そのほかの項目・年齢区分・確認の日時・作成日時は変わらない)。
+  UserProfile withNotify(NotifySettings newNotify, {required DateTime updatedAt}) => UserProfile(
+        displayName: displayName,
+        ageBand: ageBand,
+        genres: genres,
+        notify: newNotify,
+        publishAckAt: publishAckAt,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+        prefecture: prefecture,
+      );
 }
 
 enum UserProfileField { displayName, ageBand, genres, prefecture, publishConfirmed }

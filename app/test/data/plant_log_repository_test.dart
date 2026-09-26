@@ -138,6 +138,30 @@ void main() {
     });
   });
 
+  group('全部削除(アカウント削除のとき)', () {
+    test('全株とその記録が消える', () async {
+      final other = InMemoryPlantRepository(clock: () => clockNow, idGenerator: () => 'plant2', logIdGenerator: () => 'x');
+      await other.add(const PlantInput(name: 'b'));
+      await repo.addLog(plantId, water());
+      await repo.addLog(plantId, water());
+      await repo.deleteAll();
+      expect(await repo.watchAll().first, isEmpty);
+      expect(await repo.watchLogs(plantId).first, isEmpty);
+      // 株がないので、記録も追加できない
+      await expectLater(repo.addLog(plantId, water()), throwsA(isA<PlantNotFoundException>()));
+      // 別の保存先には影響しない
+      expect(await other.watchAll().first, hasLength(1));
+    });
+
+    test('何もなくてもエラーにしない。消したあと、また追加できる', () async {
+      await repo.deleteAll();
+      await repo.deleteAll();
+      final again = await repo.add(const PlantInput(name: 'c'));
+      expect(again.name, 'c');
+      expect(await repo.watchAll().first, hasLength(1));
+    });
+  });
+
   group('健康状態の変更', () {
     test('株の健康状態が変わり、変更が記録として残る(株の更新日時も進む。それ以外は変わらない)', () async {
       final before = (await repo.watchAll().first).single;

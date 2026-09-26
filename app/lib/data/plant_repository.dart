@@ -19,6 +19,9 @@ abstract interface class PlantRepository {
   /// 株を更新する(共有設定・作成日時は変えない)。存在しなければ [PlantNotFoundException]。
   Future<Plant> update(String id, PlantInput input);
 
+  /// 全株と、その記録をすべて消す(アカウント削除のとき。サーバーの `deleteAccount` の後片付けに相当)。
+  Future<void> deleteAll();
+
   /// 株の共有設定(公開/非公開と範囲)だけを変える。ほかの項目・作成日時は変えず、更新日時は進む。
   /// 存在しなければ [PlantNotFoundException]。
   Future<Plant> setVisibility(String id, PlantVisibility visibility);
@@ -152,6 +155,18 @@ class InMemoryPlantRepository implements PlantRepository {
     _plants[id] = plant;
     _changes.add(_snapshot());
     return plant;
+  }
+
+  @override
+  Future<void> deleteAll() async {
+    final ids = _logs.keys.toList();
+    final hadPlants = _plants.isNotEmpty;
+    _plants.clear();
+    _logs.clear();
+    if (hadPlants) _changes.add(_snapshot());
+    for (final id in ids) {
+      _logChanges.add(id);
+    }
   }
 
   @override
