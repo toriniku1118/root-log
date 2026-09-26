@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'data/plant_repository.dart';
+import 'data/user_repository.dart';
 import 'domain/plant.dart';
 import 'domain/plant_log.dart';
 
@@ -21,3 +22,10 @@ final lastWateredProvider = Provider.family<DateTime?, String>((ref, plantId) {
   // 記録は新しい順。最初の水やりが、最後の水やり
   return logs.where((l) => l.type == PlantLogType.water).firstOrNull?.occurredAt;
 });
+
+/// ユーザー情報の保存先。今はメモリ上(1人分の仮のユーザー。アプリを閉じると消える)。
+/// Firebase 接続後に、本物のサインインと Firestore 版へ差し替える。
+final userRepositoryProvider = Provider<UserRepository>((ref) => InMemoryUserRepository());
+
+/// サインインの状態と、登録済みのユーザー情報。アプリの入口が、どの画面から始めるかを決めるのに使う。
+final sessionProvider = StreamProvider<Session>((ref) => ref.watch(userRepositoryProvider).watchSession());
