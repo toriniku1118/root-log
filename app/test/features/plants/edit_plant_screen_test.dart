@@ -43,8 +43,11 @@ Future<InMemoryPlantRepository> pumpHome(WidgetTester tester, List<PlantInput> p
   return repo;
 }
 
+/// ホームの株をタップして詳細を開き、「編集」で編集画面を開く。
 Future<void> openEdit(WidgetTester tester, String name) async {
   await tester.tap(find.text(name));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const Key('edit')));
   await tester.pumpAndSettle();
 }
 
@@ -60,7 +63,7 @@ String textOf(WidgetTester tester, String key) => tester.widget<TextField>(field
 
 void main() {
   group('編集画面を開く', () {
-    testWidgets('ホームの株をタップすると編集画面が開き、今の値が入っている', (tester) async {
+    testWidgets('株の詳細の「編集」で編集画面が開き、今の値が入っている', (tester) async {
       await pumpHome(tester, [_monstera]);
       await openEdit(tester, 'モンステラ');
 
@@ -84,7 +87,9 @@ void main() {
       await pumpHome(tester, [_monstera]);
       await openEdit(tester, 'モンステラ');
       expect(deleteButton, findsOneWidget);
-      await tester.tap(find.byTooltip('戻る'));
+      await tester.tap(find.byTooltip('戻る')); // 編集 → 詳細
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('戻る')); // 詳細 → ホーム
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('株を追加'));
@@ -101,7 +106,7 @@ void main() {
   });
 
   group('更新', () {
-    testWidgets('直して保存すると、内容が変わり、ホームに戻って「更新しました」と出る。共有設定・作成日時・健康状態は変わらない', (tester) async {
+    testWidgets('直して保存すると、内容が変わり、詳細に戻って「更新しました」と出る。共有設定・作成日時・健康状態は変わらない', (tester) async {
       final repo = await pumpHome(tester, [_monstera]);
       final before = (await plantsOf(tester, repo)).single;
 
@@ -130,11 +135,11 @@ void main() {
       expect(after.variety, 'アルボ');
       expect(after.source, '〇〇植物店');
 
-      // ホームに戻っている
+      // 詳細に戻っている(変えた内容が出る)
       expect(field('name'), findsNothing);
       expect(find.text('更新しました'), findsOneWidget);
-      expect(find.text('モンステラ アルボ'), findsOneWidget);
-      expect(find.text('ベランダ'), findsOneWidget); // 置き場所の見出しも変わる
+      expect(find.text('モンステラ アルボ'), findsOneWidget); // 画面のタイトル
+      expect(find.text('ベランダ・5号・入手日 2026/05/01'), findsOneWidget);
     });
 
     testWidgets('購入価格・入手日・品種などを空にして保存できる(未設定に戻る)', (tester) async {
@@ -169,7 +174,7 @@ void main() {
       expect((await plantsOf(tester, repo)).single.name, 'モンステラ');
     });
 
-    testWidgets('編集中に株がなくなっていたら、「株が見つかりません」と出てホームに戻る', (tester) async {
+    testWidgets('編集中に株がなくなっていたら、「株が見つかりません」と出てホームまで戻る', (tester) async {
       final repo = await pumpHome(tester, [_monstera]);
       final plant = (await plantsOf(tester, repo)).single;
       await openEdit(tester, 'モンステラ');
@@ -180,6 +185,7 @@ void main() {
 
       expect(find.text('株が見つかりません'), findsOneWidget);
       expect(field('name'), findsNothing);
+      expect(find.byKey(const Key('edit')), findsNothing); // 詳細も閉じている
       expect(find.text('まだ株がありません'), findsOneWidget);
     });
   });
@@ -192,7 +198,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('入力を破棄しますか?'), findsNothing);
       expect(field('name'), findsNothing);
-      expect(find.text('モンステラ'), findsOneWidget);
+      expect(find.byKey(const Key('edit')), findsOneWidget); // 詳細に戻っている
     });
 
     testWidgets('変えていると確認が出る。「続ける」で残り、「破棄して戻る」で、元の内容のまま戻る', (tester) async {
@@ -213,6 +219,7 @@ void main() {
       await tester.tap(find.text('破棄して戻る'));
       await tester.pumpAndSettle();
       expect(field('name'), findsNothing);
+      expect(find.byKey(const Key('edit')), findsOneWidget); // 詳細に戻っている
       expect((await plantsOf(tester, repo)).single.name, 'モンステラ');
     });
 
@@ -245,7 +252,7 @@ void main() {
       expect(await plantsOf(tester, repo), hasLength(1));
     });
 
-    testWidgets('「削除する」で株が消え、ホームに戻って「削除しました」と出る', (tester) async {
+    testWidgets('「削除する」で株が消え、詳細も閉じてホームに戻り、「削除しました」だけが出る', (tester) async {
       final repo = await pumpHome(tester, [
         _monstera,
         const PlantInput(name: 'パキラ', locationName: '玄関'),
@@ -258,7 +265,9 @@ void main() {
 
       expect((await plantsOf(tester, repo)).map((p) => p.name), ['パキラ']);
       expect(field('name'), findsNothing);
+      expect(find.byKey(const Key('edit')), findsNothing); // 詳細も閉じている
       expect(find.text('削除しました'), findsOneWidget);
+      expect(find.text('株が見つかりません'), findsNothing);
       expect(find.text('モンステラ'), findsNothing);
       expect(find.text('パキラ'), findsOneWidget);
     });

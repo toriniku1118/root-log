@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants.dart';
 import '../../domain/plant.dart';
 import '../../providers.dart';
+import '../plants/plant_detail_screen.dart';
 import '../plants/plant_form_screen.dart';
 import 'plant_groups.dart';
 
@@ -36,8 +37,8 @@ void _openAddPlant(BuildContext context) {
   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const PlantFormScreen()));
 }
 
-void _openEditPlant(BuildContext context, Plant plant) {
-  Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => PlantFormScreen(plant: plant)));
+void _openPlantDetail(BuildContext context, Plant plant) {
+  Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => PlantDetailScreen(plantId: plant.id)));
 }
 
 class _EmptyState extends StatelessWidget {
@@ -132,8 +133,7 @@ class _PlantTile extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        // 暫定:株の詳細(SCR-08。順3)ができるまでは、タップで編集画面を開く
-        onTap: () => _openEditPlant(context, plant),
+        onTap: () => _openPlantDetail(context, plant), // 株の詳細(SCR-08)を開く。編集は詳細の「編集」から
         title: Text(plant.name),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

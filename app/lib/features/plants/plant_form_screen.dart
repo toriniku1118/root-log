@@ -9,6 +9,9 @@ import '../../domain/plant_input.dart';
 import '../../domain/plant_tag.dart';
 import '../../providers.dart';
 
+/// 株を追加・編集する画面が閉じたときの結果。[deleted] のとき、その株はもうない(削除した、または保存しようとしたらなかった)。
+enum PlantFormResult { saved, deleted }
+
 /// 株を追加・編集する画面(SCR-05)。[plant] を渡すと編集(削除もここから)、なければ追加。
 ///
 /// 追加した株は、初期公開・写真のみ(2026-09-26。オプトアウト)。編集では、共有設定・作成日時・健康状態は変えない。
@@ -146,7 +149,7 @@ class _PlantFormScreenState extends ConsumerState<PlantFormScreen> {
       }
     } on PlantNotFoundException {
       // 編集中に、株がなくなっていた
-      navigator.pop();
+      navigator.pop(PlantFormResult.deleted);
       messenger.showSnackBar(const SnackBar(content: Text('株が見つかりません')));
       return;
     } on PlantValidationException catch (e) {
@@ -162,7 +165,7 @@ class _PlantFormScreenState extends ConsumerState<PlantFormScreen> {
       messenger.showSnackBar(const SnackBar(content: Text('保存できませんでした。もう一度試してください')));
       return;
     }
-    navigator.pop();
+    navigator.pop(PlantFormResult.saved);
     messenger.showSnackBar(SnackBar(content: Text(editing == null ? '追加しました' : '更新しました')));
   }
 
@@ -192,7 +195,7 @@ class _PlantFormScreenState extends ConsumerState<PlantFormScreen> {
       messenger.showSnackBar(const SnackBar(content: Text('削除できませんでした。もう一度試してください')));
       return;
     }
-    navigator.pop();
+    navigator.pop(PlantFormResult.deleted);
     messenger.showSnackBar(const SnackBar(content: Text('削除しました')));
   }
 
