@@ -82,8 +82,8 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 ### 3.3 これから追加するデータ
 | データ | 保存先 | 内容 | 状態 |
 |---|---|---|---|
-| 記録 `PlantLog` | `…/logs/{logId}` | `type`(`water` `repot` `fertilize` `prune` `note` `stage` `health`)、`occurredAt`(今日以前)、`recordedAt`(サーバー時刻)、`note`(〜500)、`stage`(`acquired` `rooted` `new_leaf` `repotted` `flowered` `divided` `recovered` `died`) | ルール・アプリのデータ・検証・保存先(メモリ)は実装済み(#64)。画面は未 |
-| 写真 `PlantPhoto` | `…/photos/{photoId}` | 保存先、サイズ、撮影元、受信時刻(`receivedAt`)、来歴かどうか(`provenance`)と理由(`provenanceReason`)など | サーバーが作る。アプリは読むだけ |
+| 記録 `PlantLog` | `…/logs/{logId}` | `type`(`water` `repot` `fertilize` `prune` `note` `stage` `health`)、`occurredAt`(今日以前)、`recordedAt`(サーバー時刻)、`note`(〜500)、`stage`(`acquired` `rooted` `new_leaf` `repotted` `flowered` `divided` `recovered` `died`) | ルール・アプリのデータ・検証・保存先(メモリ)・画面は実装済み(#64・#65) |
+| 写真 `PlantPhoto` | `…/photos/{photoId}` | 保存先、サイズ、撮影元、受信時刻(`receivedAt`)、来歴かどうか(`provenance`)と理由(`provenanceReason`)など | サーバーが作る。アプリは読むだけ。アプリのデータ(`PlantPhoto`・`PhotoSource`・`ProvenanceReason`。`domain/plant_photo.dart`)とメモリ上の保存先は実装済み(#80)。理由の `id` はサーバーの文字列と、テストで突き合わせる |
 | ユーザー `UserProfile` | `users/{uid}` | 表示名(1〜30、必須)、年齢区分、好きなジャンル(9個まで)、都道府県(コード `01`〜`47` または空)、通知設定(`notify`) | ルール・アプリのデータ・検証・保存先(メモリ・仮のユーザー1人分)は実装済み(#72)。画面は #73 |
 
 ### 3.4 通知設定(`users.notify`)
@@ -127,6 +127,9 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 | `updateLog(plantId, logId, occurredAt:, note:)` | 記録のメモと日時を直す。種類・段階・健康状態・記録した時刻は変えられない | 記録がなければ `PlantLogNotFoundException`、条件を満たさないとき `PlantLogValidationException`(元の内容が残る) |
 | `deleteLog(plantId, logId)` | 記録を削除する。存在しなくてもエラーにしない | — |
 | `setVisibility(id, visibility)` | 株の共有設定(公開/非公開と範囲)だけを変える。ほかの項目・作成日時・健康状態は変えず、更新日時は進む | 存在しないとき `PlantNotFoundException` |
+| `watchPhotos(plantId)` | 株の写真の記録の一覧を流す(新しい順:受信時刻 → あとに作ったものが上)。購読した時点の内容がすぐ流れる。**アプリから写真の記録は作れない**(`simulateProcessedPhoto` は、メモリ版の開発・テスト専用の入口で、画面からは呼ばない。Firestore 版では、サーバーの `processUpload` が作る) | 株がなければ空 |
+| `watchDeletedPhotoCount(plantId)` | 「削除された写真あり」の数を流す(サーバーの `systemLogs` の `photo_deleted` に相当) | 株がなければ 0 |
+| `deletePhoto(plantId, photoId)` | 写真を削除する。削除の数が1つ増え、残りの写真から来歴の印(`hasProvenance`)を数え直す(サーバーの `deletePhoto` と `refreshProvenanceFlag` に相当) | 写真がなければ `PlantPhotoNotFoundException`(数は増えない) |
 | `deleteAll()` | 全株と、その記録をすべて消す(アカウント削除のとき。サーバーの `deleteAccount` の後片付けに相当)。何もなくてもエラーにしない | — |
 | `changeHealth(plantId, health, note:, occurredAt:)` | 株の健康状態を変え、変更を記録(種類 `health`)として残す。**株の更新と記録の追加は、同時に成功するか同時に失敗する**。いまと同じ状態なら何もしない(記録も増えない) | 株がなければ `PlantNotFoundException`、条件を満たさないとき `PlantLogValidationException`(株も記録も変わらない) |
 
@@ -236,7 +239,7 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 | 2 | タグ・公開範囲の id | 一致 | なし |
 | 3 | 文字数の上限(名前50・品種80・入手先100・置き場所30・号数10) | 一致(`PlantLimits` とルール) | なし |
 | 4 | 新規作成は初期公開でもよい(ルールは公開の初期値を強制しない。書き出しの安全策は `publishAckAt`)、来歴の印はアプリから持たない | 一致 | なし |
-| 5 | ホームの機能 | 一覧・置き場所のまとめ・0件の案内・「株を追加」まで。設定への入口(「巡回する」は後回し)・最新写真・前回の撮影からの日数・来歴の印は未 | 外部設計 3.5 に「現状」として明記。要件 REQ-005 は「一部」 |
+| 5 | ホームの機能 | 一覧・置き場所のまとめ・0件の案内・「株を追加」まで。設定への入口・前回の撮影からの日数・来歴の印まで(#80)。最新写真の画像・「巡回する」(後回し)は未 | 外部設計 3.5 に「現状」として明記。要件 REQ-005 は「一部」 |
 | 6 | 株を追加・編集する画面 | 追加・編集・削除まで実装済み(#17・#62)。編集への入口は、株の詳細(SCR-08)の「編集」(#65)。撮影への遷移は未 | 外部設計 SCR-05 の「現状」に明記 |
 | 7 | 配色の指定 | `app.dart` で `colorSchemeSeed: Colors.green` とダークテーマを指定。開発ルールは「テーマは既定のまま」 | 見た目を作り込む段階(別の作業)で扱う。今は変えない。ワイヤーフレーム方針とのずれとして記録 |
 | 8 | `users.displayName`(必須)を入力する画面 | 設計0の画面一覧にない | 未決 Q1 |

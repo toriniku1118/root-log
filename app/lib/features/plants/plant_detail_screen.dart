@@ -5,11 +5,13 @@ import '../../data/plant_repository.dart';
 import '../../domain/plant.dart';
 import '../../domain/plant_health.dart';
 import '../../domain/plant_log.dart';
+import '../../domain/plant_photo.dart';
 import '../../domain/plant_stage.dart';
 import '../../providers.dart';
 import 'care.dart';
 import 'log_dialog.dart';
 import 'plant_form_screen.dart';
+import 'photo_text.dart';
 import 'plant_visibility_screen.dart';
 import 'visibility_text.dart';
 import 'story.dart';
@@ -107,6 +109,51 @@ class _PlantDetailScreenState extends ConsumerState<PlantDetailScreen> {
     }
   }
 
+  /// 写真の拡大(画像は仮の表示)と、削除。削除すると「削除された写真あり」の記録が残る(REQ-019)。
+  Future<void> _openPhoto(PlantPhoto photo) async {
+    final delete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('写真'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              key: const Key('photo-placeholder'),
+              height: 160,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(border: Border.all()),
+              child: const Icon(Icons.image, size: 64),
+            ),
+            const SizedBox(height: 12),
+            Text(provenanceLabel(photo), key: const Key('photo-provenance')),
+            const SizedBox(height: 4),
+            Text('受信:${formatDate(photo.receivedAt)} ${formatReceivedAt(photo.receivedAt).substring(6)}'),
+          ],
+        ),
+        actions: [
+          TextButton(key: const Key('photo-delete'), onPressed: () => Navigator.of(context).pop(true), child: const Text('この写真を削除')),
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('閉じる')),
+        ],
+      ),
+    );
+    if (delete != true || !mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('写真を削除しますか?'),
+        content: const Text('元に戻せません。「削除された写真あり」の記録が残り、取引で相手に見せるときに、来歴の欠落が分かります。'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('やめる')),
+          TextButton(key: const Key('photo-delete-confirm'), onPressed: () => Navigator.of(context).pop(true), child: const Text('削除する')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await _run(() => _repo.deletePhoto(widget.plantId, photo.id), done: '写真を削除しました');
+  }
+
   Future<void> _openEdit(Plant plant) async {
     final result = await Navigator.of(context).push<PlantFormResult>(
       MaterialPageRoute(builder: (_) => PlantFormScreen(plant: plant)),
@@ -151,7 +198,9 @@ class _PlantDetailScreenState extends ConsumerState<PlantDetailScreen> {
     }
 
     final logList = logs.value ?? const <PlantLog>[];
-    final story = buildStory(logList);
+    final photoList = ref.watch(plantPhotosProvider(widget.plantId)).value ?? const <PlantPhoto>[];
+    final deletedPhotos = ref.watch(deletedPhotoCountProvider(widget.plantId)).value ?? 0;
+    final story = buildStory(logList, photos: photoList);
     final healthSince = plant.health == PlantHealth.initial
         ? null
         : logList.where((l) => l.type == PlantLogType.health).firstOrNull?.occurredAt;
@@ -190,6 +239,11 @@ class _PlantDetailScreenState extends ConsumerState<PlantDetailScreen> {
                 key: const Key('health-line'),
                 style: theme.textTheme.bodyMedium,
               ),
+            ),
+          if (deletedPhotos > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text('削除された写真があります($deletedPhotos枚)', key: const Key('deleted-photos-line'), style: theme.textTheme.bodyMedium),
             ),
           if (logList.where((l) => l.type == PlantLogType.water).firstOrNull case final water?)
             Padding(
@@ -254,13 +308,24 @@ class _PlantDetailScreenState extends ConsumerState<PlantDetailScreen> {
                 child: Text('── ${formatDate(day.date)} ──', style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.primary)),
               ),
               for (final entry in day.entries)
-                ListTile(
-                  key: Key('entry-${entry.log.id}'),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                  title: Text(entry.title),
-                  subtitle: entry.log.note == null ? null : Text(entry.log.note!),
-                  onTap: () => _editLog(entry.log),
-                ),
+                if (entry.photo case final photo?)
+                  ListTile(
+                    key: Key('entry-${entry.id}'),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                    // 来歴つきの写真だけに印を付ける
+                    leading: photo.provenance ? const Icon(Icons.verified, key: Key('provenance-mark')) : const Icon(Icons.image_outlined),
+                    title: Text(entry.title),
+                    subtitle: Text(provenanceLabel(photo)),
+                    onTap: () => _openPhoto(photo),
+                  )
+                else
+                  ListTile(
+                    key: Key('entry-${entry.id}'),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                    title: Text(entry.title),
+                    subtitle: entry.log!.note == null ? null : Text(entry.log!.note!),
+                    onTap: () => _editLog(entry.log!),
+                  ),
             ],
         ],
       ),

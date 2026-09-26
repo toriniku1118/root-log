@@ -4,6 +4,7 @@ import 'data/plant_repository.dart';
 import 'data/user_repository.dart';
 import 'domain/plant.dart';
 import 'domain/plant_log.dart';
+import 'domain/plant_photo.dart';
 
 /// 株の保存先。今はメモリ上(アプリを閉じると消える)。Firebase 接続後に Firestore 版へ差し替える。
 final plantRepositoryProvider = Provider<PlantRepository>((ref) => InMemoryPlantRepository());
@@ -29,3 +30,19 @@ final userRepositoryProvider = Provider<UserRepository>((ref) => InMemoryUserRep
 
 /// サインインの状態と、登録済みのユーザー情報。アプリの入口が、どの画面から始めるかを決めるのに使う。
 final sessionProvider = StreamProvider<Session>((ref) => ref.watch(userRepositoryProvider).watchSession());
+
+/// 株の写真の記録(新しい順)。サーバーが作ったものを、アプリは読むだけ。
+final plantPhotosProvider = StreamProvider.family<List<PlantPhoto>, String>(
+  (ref, plantId) => ref.watch(plantRepositoryProvider).watchPhotos(plantId),
+);
+
+/// 削除された写真の数(「削除された写真あり」)。
+final deletedPhotoCountProvider = StreamProvider.family<int, String>(
+  (ref, plantId) => ref.watch(plantRepositoryProvider).watchDeletedPhotoCount(plantId),
+);
+
+/// 株ごとの、最後に撮影した(サーバーが受信した)日時。写真がなければ null。ホームの「前回の撮影から○日」が使う。
+final lastPhotoProvider = Provider.family<DateTime?, String>((ref, plantId) {
+  final photos = ref.watch(plantPhotosProvider(plantId)).value ?? const <PlantPhoto>[];
+  return photos.firstOrNull?.receivedAt; // 新しい順。最初が最新
+});

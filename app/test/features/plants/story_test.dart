@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rootlog/domain/plant_health.dart';
 import 'package:rootlog/domain/plant_log.dart';
+import 'package:rootlog/domain/plant_photo.dart';
 import 'package:rootlog/domain/plant_stage.dart';
 import 'package:rootlog/features/plants/story.dart';
 
@@ -59,7 +60,7 @@ void main() {
     final h3 = log(PlantLogType.health, DateTime(2026, 9, 25), health: PlantHealth.recovering);
     final water = log(PlantLogType.water, DateTime(2026, 9, 22));
     final story = buildStory([h3, water, h2, h1]); // 新しい順
-    final titles = {for (final d in story) for (final e in d.entries) e.log.id: e.title};
+    final titles = {for (final d in story) for (final e in d.entries) e.log!.id: e.title};
     expect(titles[h1.id], '健康状態:初期 → 要観察');
     expect(titles[h2.id], '健康状態:要観察 → 不調');
     expect(titles[h3.id], '健康状態:不調 → 復活中');
@@ -80,5 +81,48 @@ void main() {
   test('日付の表示は yyyy/MM/dd(月・日は2桁)', () {
     expect(formatDate(DateTime(2026, 9, 5)), '2026/09/05');
     expect(formatDate(DateTime(2026, 12, 25)), '2026/12/25');
+  });
+
+  group('写真も時系列に入る', () {
+    PlantPhoto photoAt(DateTime at, {String id = 'ph'}) => PlantPhoto(
+          id: id,
+          plantId: 'p',
+          storagePath: 'x',
+          source: PhotoSource.camera,
+          receivedAt: at,
+          provenance: true,
+          provenanceReason: ProvenanceReason.ok,
+        );
+
+    test('写真だけでも、日付ごとにまとまる。見出しは「写真」', () {
+      final story = buildStory(const [], photos: [photoAt(DateTime(2026, 9, 20, 10, 3), id: 'a'), photoAt(DateTime(2026, 9, 13, 9), id: 'b')]);
+      expect(story.map((d) => d.date), [DateTime(2026, 9, 20), DateTime(2026, 9, 13)]);
+      expect(story[0].entries.single.title, '写真');
+      expect(story[0].entries.single.photo!.id, 'a');
+      expect(story[0].entries.single.log, isNull);
+      expect(story[0].entries.single.id, 'photo-a');
+    });
+
+    test('記録と写真は、時刻の新しい順に混ざる(写真の日付は受信時刻)', () {
+      final water = log(PlantLogType.water, DateTime(2026, 9, 20, 8));
+      final memo = log(PlantLogType.note, DateTime(2026, 9, 20, 12), note: 'つぼみ');
+      final story = buildStory([memo, water], photos: [photoAt(DateTime(2026, 9, 20, 10, 3))]);
+      expect(story, hasLength(1));
+      expect(story.single.entries.map((e) => e.title), ['メモ', '写真', '水やり']);
+    });
+
+    test('同じ時刻なら、記録が写真より上', () {
+      final t = DateTime(2026, 9, 20, 10);
+      final story = buildStory([log(PlantLogType.water, t)], photos: [photoAt(t)]);
+      expect(story.single.entries.map((e) => e.title), ['水やり', '写真']);
+    });
+
+    test('写真があっても、健康状態の前後は変わらない', () {
+      final h1 = log(PlantLogType.health, DateTime(2026, 9, 13), health: PlantHealth.watch);
+      final h2 = log(PlantLogType.health, DateTime(2026, 9, 20), health: PlantHealth.bad);
+      final story = buildStory([h2, h1], photos: [photoAt(DateTime(2026, 9, 15))]);
+      final titles = [for (final d in story) for (final e in d.entries) e.title];
+      expect(titles, ['健康状態:要観察 → 不調', '写真', '健康状態:初期 → 要観察']);
+    });
   });
 }

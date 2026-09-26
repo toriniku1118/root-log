@@ -42,6 +42,7 @@ class Plant {
     this.potSize,
     this.purchasePrice,
     this.health = defaultPlantHealth,
+    this.hasProvenance = false,
   });
 
   final String id;
@@ -64,6 +65,9 @@ class Plant {
 
   /// いまの健康状態。変更は記録としても残す(株の履歴でたどれる)。
   final PlantHealth health;
+
+  /// 来歴つきの写真がある印。**サーバーだけが設定する**(アプリは読むだけ。書き戻さない)。
+  final bool hasProvenance;
   final Set<PlantTag> tags;
   final PlantVisibility visibility;
   final DateTime createdAt;
@@ -85,6 +89,26 @@ class Plant {
         potSize: potSize,
         purchasePrice: purchasePrice,
         health: health,
+        hasProvenance: hasProvenance,
+      );
+
+  /// 来歴の印だけを変えた株(サーバーの処理を真似るメモリ版が使う。アプリの画面は呼ばない)。
+  Plant withHasProvenance(bool value) => Plant(
+        id: id,
+        name: name,
+        genres: genres,
+        tags: tags,
+        visibility: visibility,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+        variety: variety,
+        acquiredAt: acquiredAt,
+        source: source,
+        locationName: locationName,
+        potSize: potSize,
+        purchasePrice: purchasePrice,
+        health: health,
+        hasProvenance: value,
       );
 
   /// 健康状態だけを変えた株(そのほかの項目・作成日時・共有設定は変わらない)。
@@ -103,5 +127,6 @@ class Plant {
         potSize: potSize,
         purchasePrice: purchasePrice,
         health: newHealth,
+        hasProvenance: hasProvenance,
       );
 }

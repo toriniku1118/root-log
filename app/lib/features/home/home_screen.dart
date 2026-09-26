@@ -162,6 +162,7 @@ class _PlantTile extends ConsumerWidget {
     final subtitle = variety == null ? genreLabel : '$genreLabel・$variety';
     final tags = plant.tags.toList()..sort((a, b) => a.index.compareTo(b.index));
     final lastWatered = ref.watch(lastWateredProvider(plant.id));
+    final lastPhoto = ref.watch(lastPhotoProvider(plant.id));
     final showHealth = plant.health != PlantHealth.initial; // 「初期」(まだ決めていない)のときは出さない
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -173,13 +174,20 @@ class _PlantTile extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(subtitle),
-            if (tags.isNotEmpty || showHealth)
+            if (tags.isNotEmpty || showHealth || plant.hasProvenance)
               Padding(
                 padding: const EdgeInsets.only(top: 6),
                 child: Wrap(
                   spacing: 6,
                   runSpacing: 4,
                   children: [
+                    if (plant.hasProvenance)
+                      Chip(
+                        key: Key('provenance-chip-${plant.id}'),
+                        avatar: const Icon(Icons.verified, size: 16),
+                        label: const Text('来歴あり'),
+                        visualDensity: VisualDensity.compact,
+                      ),
                     if (showHealth)
                       Chip(
                         key: Key('health-chip-${plant.id}'),
@@ -189,6 +197,11 @@ class _PlantTile extends ConsumerWidget {
                     for (final t in tags) Chip(label: Text(t.label), visualDensity: VisualDensity.compact),
                   ],
                 ),
+              ),
+            if (lastPhoto != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(shootLine(lastPhoto, DateTime.now()), key: Key('shoot-line-${plant.id}')),
               ),
             if (lastWatered != null)
               Padding(

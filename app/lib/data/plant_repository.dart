@@ -5,6 +5,7 @@ import '../domain/plant.dart';
 import '../domain/plant_health.dart';
 import '../domain/plant_input.dart';
 import '../domain/plant_log.dart';
+import '../domain/plant_photo.dart';
 
 /// 株の保存先の差し替え口。画面は保存先(メモリ・Firestore)を知らない。
 ///
@@ -18,6 +19,17 @@ abstract interface class PlantRepository {
 
   /// 株を更新する(共有設定・作成日時は変えない)。存在しなければ [PlantNotFoundException]。
   Future<Plant> update(String id, PlantInput input);
+
+  /// 株の写真の一覧(新しい順:受信時刻の順)。購読した時点の内容がすぐ流れ、変更のたびに流れる。株がなければ空。
+  /// 写真の記録は**サーバーだけが作る**ので、アプリから作る操作はない(受信時刻を偽れないようにするため)。
+  Stream<List<PlantPhoto>> watchPhotos(String plantId);
+
+  /// 削除された写真の数(「削除された写真あり」。来歴の欠落として、サーバーが記録を残す)。
+  Stream<int> watchDeletedPhotoCount(String plantId);
+
+  /// 写真を削除する(サーバーの `deletePhoto` に相当)。削除の記録(欠落)が残り、株の来歴の印は、
+  /// 残っている写真から数え直す。写真がなければ [PlantPhotoNotFoundException]。
+  Future<void> deletePhoto(String plantId, String photoId);
 
   /// 全株と、その記録をすべて消す(アカウント削除のとき。サーバーの `deleteAccount` の後片付けに相当)。
   Future<void> deleteAll();
@@ -48,6 +60,15 @@ abstract interface class PlantRepository {
   /// いまと同じ状態なら、何もしない(記録も増えない)。株がなければ [PlantNotFoundException]、
   /// 条件を満たさなければ [PlantLogValidationException](株も記録も変わらない)。
   Future<Plant> changeHealth(String plantId, PlantHealth health, {String? note, DateTime? occurredAt});
+}
+
+class PlantPhotoNotFoundException implements Exception {
+  const PlantPhotoNotFoundException(this.id);
+
+  final String id;
+
+  @override
+  String toString() => 'PlantPhotoNotFoundException($id)';
 }
 
 class PlantNotFoundException implements Exception {
@@ -84,6 +105,11 @@ class InMemoryPlantRepository implements PlantRepository {
   /// 株の id → 記録(追加した順)。
   final Map<String, List<PlantLog>> _logs = {};
   final StreamController<String> _logChanges = StreamController<String>.broadcast(sync: true);
+
+  /// 株の id → 写真の記録(追加した順)と、削除された写真の数。サーバーが作る・数えるもの。
+  final Map<String, List<PlantPhoto>> _photos = {};
+  final Map<String, int> _deletedPhotoCounts = {};
+  final StreamController<String> _photoChanges = StreamController<String>.broadcast(sync: true);
 
   List<Plant> _snapshot() => List.unmodifiable(_plants.values);
 
@@ -147,6 +173,7 @@ class InMemoryPlantRepository implements PlantRepository {
       potSize: v.potSize,
       purchasePrice: v.purchasePrice,
       health: current.health, // 健康状態は、編集画面ではなく、株の詳細で変える(変更は記録として残す)
+      hasProvenance: current.hasProvenance, // 来歴の印はサーバーだけが設定する。編集で消さない
       tags: v.tags,
       visibility: current.visibility,
       createdAt: current.createdAt,
@@ -157,8 +184,108 @@ class InMemoryPlantRepository implements PlantRepository {
     return plant;
   }
 
+  /// 新しい順:受信時刻 → あとに追加したものが上。
+  List<PlantPhoto> _photoSnapshot(String plantId) {
+    final photos = _photos[plantId] ?? const <PlantPhoto>[];
+    final indexed = [for (var i = 0; i < photos.length; i++) (i, photos[i])];
+    indexed.sort((a, b) {
+      final byTime = b.$2.receivedAt.compareTo(a.$2.receivedAt);
+      return byTime != 0 ? byTime : b.$1.compareTo(a.$1);
+    });
+    return List.unmodifiable([for (final e in indexed) e.$2]);
+  }
+
+  @override
+  Stream<List<PlantPhoto>> watchPhotos(String plantId) {
+    late final StreamController<List<PlantPhoto>> controller;
+    StreamSubscription<String>? subscription;
+    controller = StreamController<List<PlantPhoto>>(
+      onListen: () {
+        controller.add(_photoSnapshot(plantId));
+        subscription = _photoChanges.stream.where((id) => id == plantId).listen((_) => controller.add(_photoSnapshot(plantId)));
+      },
+      onCancel: () => subscription?.cancel(),
+    );
+    return controller.stream;
+  }
+
+  @override
+  Stream<int> watchDeletedPhotoCount(String plantId) {
+    late final StreamController<int> controller;
+    StreamSubscription<String>? subscription;
+    controller = StreamController<int>(
+      onListen: () {
+        controller.add(_deletedPhotoCounts[plantId] ?? 0);
+        subscription = _photoChanges.stream.where((id) => id == plantId).listen((_) => controller.add(_deletedPhotoCounts[plantId] ?? 0));
+      },
+      onCancel: () => subscription?.cancel(),
+    );
+    return controller.stream;
+  }
+
+  /// 来歴の印を、残っている写真から数え直す(サーバーの `refreshProvenanceFlag` に相当)。
+  void _refreshProvenanceFlag(String plantId) {
+    final plant = _plants[plantId];
+    if (plant == null) return;
+    final has = (_photos[plantId] ?? const <PlantPhoto>[]).any((p) => p.provenance);
+    if (plant.hasProvenance != has) {
+      _plants[plantId] = plant.withHasProvenance(has);
+      _changes.add(_snapshot());
+    }
+  }
+
+  /// **サーバーの処理(`processUpload`)を真似て、写真の記録を作る。** アプリの画面からは呼ばない
+  /// (写真の記録はサーバーだけが作る)。テストと、Firebase 接続前の動作確認で使う。
+  /// 来歴つきは、理由が [ProvenanceReason.ok] のときだけ(判定は、サーバーが決める)。
+  PlantPhoto simulateProcessedPhoto(
+    String plantId, {
+    ProvenanceReason reason = ProvenanceReason.ok,
+    DateTime? receivedAt,
+    PhotoSource? source,
+  }) {
+    if (!_plants.containsKey(plantId)) throw PlantNotFoundException(plantId);
+    final list = _photos.putIfAbsent(plantId, () => []);
+    final existing = {for (final p in list) p.id};
+    var id = _newLogId();
+    while (existing.contains(id)) {
+      id = _newLogId();
+    }
+    final photo = PlantPhoto(
+      id: id,
+      plantId: plantId,
+      storagePath: 'photos/simulated/$id.jpg',
+      source: source ?? (reason == ProvenanceReason.gallery ? PhotoSource.gallery : PhotoSource.camera),
+      receivedAt: receivedAt ?? _clock(),
+      provenance: reason == ProvenanceReason.ok,
+      provenanceReason: reason,
+      width: 1600,
+      height: 1200,
+    );
+    list.add(photo);
+    _refreshProvenanceFlag(plantId);
+    _photoChanges.add(plantId);
+    return photo;
+  }
+
+  @override
+  Future<void> deletePhoto(String plantId, String photoId) async {
+    final list = _photos[plantId];
+    final index = list?.indexWhere((p) => p.id == photoId) ?? -1;
+    if (list == null || index < 0) throw PlantPhotoNotFoundException(photoId);
+    list.removeAt(index);
+    _deletedPhotoCounts[plantId] = (_deletedPhotoCounts[plantId] ?? 0) + 1; // 来歴の欠落として残す
+    _refreshProvenanceFlag(plantId);
+    _photoChanges.add(plantId);
+  }
+
   @override
   Future<void> deleteAll() async {
+    final photoIds = {..._photos.keys, ..._deletedPhotoCounts.keys}.toList();
+    _photos.clear();
+    _deletedPhotoCounts.clear();
+    for (final id in photoIds) {
+      _photoChanges.add(id);
+    }
     final ids = _logs.keys.toList();
     final hadPlants = _plants.isNotEmpty;
     _plants.clear();
@@ -182,8 +309,12 @@ class InMemoryPlantRepository implements PlantRepository {
   @override
   Future<void> delete(String id) async {
     final hadLogs = _logs.remove(id) != null;
+    final removedPhotos = _photos.remove(id) != null;
+    final removedDeletedCount = _deletedPhotoCounts.remove(id) != null;
+    final hadPhotos = removedPhotos || removedDeletedCount;
     if (_plants.remove(id) != null) _changes.add(_snapshot());
     if (hadLogs) _logChanges.add(id);
+    if (hadPhotos) _photoChanges.add(id);
   }
 
   /// 新しい順:出来事の日時 → 記録した時刻 → 追加した順(あとのものが上)。
