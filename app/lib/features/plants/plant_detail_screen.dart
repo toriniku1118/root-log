@@ -7,6 +7,7 @@ import '../../domain/plant_health.dart';
 import '../../domain/plant_log.dart';
 import '../../domain/plant_stage.dart';
 import '../../providers.dart';
+import 'care.dart';
 import 'log_dialog.dart';
 import 'plant_form_screen.dart';
 import 'story.dart';
@@ -169,6 +170,15 @@ class _PlantDetailScreenState extends ConsumerState<PlantDetailScreen> {
                     ? '健康状態:${plant.health.label}'
                     : '健康状態:${plant.health.label}(${formatDate(healthSince)}〜)',
                 key: const Key('health-line'),
+                style: theme.textTheme.bodyMedium,
+              ),
+            ),
+          if (logList.where((l) => l.type == PlantLogType.water).firstOrNull case final water?)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                '前回の水やり:${daysAgoLabel(daysSince(water.occurredAt, DateTime.now()))}(${formatDate(water.occurredAt)})',
+                key: const Key('last-water'),
                 style: theme.textTheme.bodyMedium,
               ),
             ),

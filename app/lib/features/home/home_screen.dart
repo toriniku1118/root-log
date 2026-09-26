@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../constants.dart';
 import '../../domain/plant.dart';
+import '../../domain/plant_health.dart';
+import '../../domain/plant_log.dart';
 import '../../providers.dart';
+import '../plants/care.dart';
 import '../plants/plant_detail_screen.dart';
 import '../plants/plant_form_screen.dart';
 import 'plant_groups.dart';
@@ -119,34 +122,68 @@ class _LocationHeader extends StatelessWidget {
   }
 }
 
-class _PlantTile extends StatelessWidget {
+/// 株を長押しして、水やりを記録する(日時は今)。「取り消し」で消せる。
+Future<void> _waterFromHome(BuildContext context, WidgetRef ref, Plant plant) async {
+  final repo = ref.read(plantRepositoryProvider);
+  final messenger = ScaffoldMessenger.of(context);
+  void show(SnackBar bar) => messenger
+    ..hideCurrentSnackBar()
+    ..showSnackBar(bar);
+  try {
+    final log = await repo.addLog(plant.id, PlantLogInput(type: PlantLogType.water, occurredAt: DateTime.now()));
+    show(SnackBar(
+      content: Text('「${plant.name}」に水やりを記録しました'),
+      action: SnackBarAction(label: '取り消し', onPressed: () => repo.deleteLog(plant.id, log.id)),
+    ));
+  } on Object {
+    show(const SnackBar(content: Text('記録できませんでした。もう一度試してください')));
+  }
+}
+
+class _PlantTile extends ConsumerWidget {
   const _PlantTile(this.plant);
 
   final Plant plant;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final variety = plant.variety;
     final genreLabel = plant.genres.map((g) => g.label).join('・');
     final subtitle = variety == null ? genreLabel : '$genreLabel・$variety';
     final tags = plant.tags.toList()..sort((a, b) => a.index.compareTo(b.index));
+    final lastWatered = ref.watch(lastWateredProvider(plant.id));
+    final showHealth = plant.health != PlantHealth.initial; // 「初期」(まだ決めていない)のときは出さない
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         onTap: () => _openPlantDetail(context, plant), // 株の詳細(SCR-08)を開く。編集は詳細の「編集」から
+        onLongPress: () => _waterFromHome(context, ref, plant), // 長押しで水やり(FN-14)
         title: Text(plant.name),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(subtitle),
-            if (tags.isNotEmpty)
+            if (tags.isNotEmpty || showHealth)
               Padding(
                 padding: const EdgeInsets.only(top: 6),
                 child: Wrap(
                   spacing: 6,
                   runSpacing: 4,
-                  children: [for (final t in tags) Chip(label: Text(t.label), visualDensity: VisualDensity.compact)],
+                  children: [
+                    if (showHealth)
+                      Chip(
+                        key: Key('health-chip-${plant.id}'),
+                        label: Text('健康状態:${plant.health.label}'),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    for (final t in tags) Chip(label: Text(t.label), visualDensity: VisualDensity.compact),
+                  ],
                 ),
+              ),
+            if (lastWatered != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(waterLine(lastWatered, DateTime.now()), key: Key('water-line-${plant.id}')),
               ),
           ],
         ),
