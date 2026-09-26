@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/user_profile.dart';
 import '../../providers.dart';
+import '../download/download_screen.dart';
 import 'delete_account_screen.dart';
 import 'legal_screen.dart';
 
@@ -81,6 +82,14 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
           const Divider(),
+          ListTile(
+            key: const Key('open-download'),
+            title: const Text('写真をダウンロード'),
+            subtitle: const Text('期間・株・写真を選んで、端末の写真フォルダへ保存'),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const DownloadScreen()),
+            ),
+          ),
           ListTile(
             key: const Key('open-privacy'),
             title: const Text('プライバシーポリシー'),

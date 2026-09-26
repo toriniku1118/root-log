@@ -60,7 +60,7 @@
 
 | 対象 | コマンド | 結果 |
 |---|---|---|
-| Flutter(単体・ウィジェット) | `docker compose run --rm flutter bash -c "flutter pub get && flutter test"` | 310件合格(`plant_repository_test` 15、`plant_genre_test` 5、`plant_health_test` 3、`plant_input_test` 27、`plant_rules_consistency_test` 19、`plant_groups_test` 4、`home_screen_test` 8、`add_plant_screen_test` 17、`edit_plant_screen_test` 14、`plant_log_test` 11、`plant_log_repository_test` 19、`story_test` 10、`plant_photo_repository_test` 12、`photo_provenance_test` 7、`plant_photos_test` 11、`plant_detail_screen_test` 25、`care_test` 7、`home_care_test` 11、`visibility_text_test` 10、`plant_visibility_screen_test` 13、`user_profile_test` 13、`user_repository_test` 18、`onboarding_test` 18、`settings_test` 13)。`flutter analyze` も問題なし(2026-09-26、#80) |
+| Flutter(単体・ウィジェット) | `docker compose run --rm flutter bash -c "flutter pub get && flutter test"` | 351件合格(`download_plan_test` 25、`download_screen_test` 16、`plant_repository_test` 15、`plant_genre_test` 5、`plant_health_test` 3、`plant_input_test` 27、`plant_rules_consistency_test` 19、`plant_groups_test` 4、`home_screen_test` 8、`add_plant_screen_test` 17、`edit_plant_screen_test` 14、`plant_log_test` 11、`plant_log_repository_test` 19、`story_test` 10、`plant_photo_repository_test` 12、`photo_provenance_test` 7、`plant_photos_test` 11、`plant_detail_screen_test` 25、`care_test` 7、`home_care_test` 11、`visibility_text_test` 10、`plant_visibility_screen_test` 13、`user_profile_test` 13、`user_repository_test` 18、`onboarding_test` 18、`settings_test` 13)。`flutter analyze` も問題なし(2026-09-26、#82) |
 | 権限ルール(Firestore・Storage) | `docker compose run --rm firebase bash -c "npm install && npm test"` | 79件合格(Firestore 65、Storage 14) |
 | サーバー処理の型チェック | `docker compose run --rm firebase bash -c "cd functions && npm install && npm run build"` | 合格 |
 | 写真の処理(位置情報の削除など) | `docker compose run --rm firebase bash -c "cd functions && npm install && npm test"` | 19件合格(写真の処理 6、公開用データ 13) |
@@ -91,6 +91,8 @@
 | `app/test/data/plant_photo_repository_test.dart` | 12 | REQ-018、019、025 |
 | `app/test/features/plants/photo_provenance_test.dart` | 7 | REQ-018 |
 | `app/test/features/plants/plant_photos_test.dart` | 11 | REQ-005、018、019、025 |
+| `app/test/features/download/download_plan_test.dart` | 25 | REQ-046 |
+| `app/test/features/download/download_screen_test.dart` | 16 | REQ-034、046 |
 | `app/test/features/plants/care_test.dart` | 7 | REQ-022 |
 | `app/test/features/home/home_care_test.dart` | 11 | REQ-005、022、048 |
 | `app/test/features/plants/visibility_text_test.dart` | 10 | REQ-028、029 |
@@ -191,7 +193,7 @@
 | 043 | — | — | `.gitignore` に `google-services.json`・`GoogleService-Info.plist`・`.env`・`key.properties`・`*.jks` を入れてある。リポジトリに含まれるファイルにもない(2026-09-26 に確認) | PR のチェック項目 |
 | 044 | — | — | 権限ルールの全テスト(79件)を、変更のたびに実行 | PR のチェック項目 |
 | 045 | FN-25 | 7章6 | なし(未実装) | 5章の数字を集計する手順を作り、テスト用のデータで確かめる |
-| 046 | SCR-13、FN-26 | 8章7 | ルール:既存の Storage テスト(「他人は非公開の写真を読めない」など)で、他人の写真を取れないことを確認済み | 単体:期間・株・写真の絞り込み、ファイル名(連番・使えない文字の置き換え)。システム:期間・株・写真の選択、0枚のときの案内、途中でやめても保存済みが残る、削除した写真が入らない(結合:エミュレーターで位置情報が入っていない)。受入:実機で写真フォルダに保存できる |
+| 046 | SCR-13、FN-26 | 8章7 | ルール:既存の Storage テスト(「他人は非公開の写真を読めない」など)で、他人の写真を取れないことを確認済み | 単体(済み):`download_plan_test`(期間の両端・株・外した写真・並び・連番・使えない文字・重複・保存先の動作確認用の実装)。システム(済み):`download_screen_test`(3つの入口・株/期間/写真の選択・0枚・進み具合とやめる・許可なし/読み込み失敗・削除した写真が入らない)。未:結合(エミュレーターで位置情報が入っていない)。受入:実機で写真フォルダに保存できる |
 | 047 | SCR-05 | 3.5、5章 | ルール(済み):上限ちょうどは通り+1・負数・小数・文字列は拒否、`null` は可、他人が読めない、公開用データを直接書けない。単体(済み):`plant_input_test`・`plant_repository_test`。サーバー(済み):`publicPlant.test.ts` で公開用データに価格が出ない | システム(済み):`add_plant_screen_test`(空欄・範囲外・カンマ・全角、「自分だけが見られます」の表示) |
 | 048 | SCR-08、SCR-04、FN-27 | 3.5 | ルール(済み):5値以外を拒否、記録の種類 `health` は値が必須・ほかの種類では付けられない、他人が読み書きできない。単体(済み):`plant_health_test`。サーバー(済み):健康状態の記録は公開しない | 単体(済み):`plant_log_repository_test`(健康状態の変更で株と記録が同時に変わる・失敗したら両方変わらない)。システム(済み):`plant_detail_screen_test`(健康状態の変更・「○○ → ○○」・詳細の「健康状態:不調(日付〜)」・メニュー)。ホーム(SCR-04)への表示は済み(`home_care_test`。#68) |
 
