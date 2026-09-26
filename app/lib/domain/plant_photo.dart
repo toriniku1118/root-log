@@ -1,4 +1,4 @@
-/// 撮影元。`id` は `firebase/functions/src/index.ts` の `source` と同じ文字列。
+/// 撮影元。`id` は `firebase/functions/src/provenance.ts` の `PhotoSource` と同じ文字列。
 enum PhotoSource {
   camera('camera'),
   gallery('gallery');
@@ -9,7 +9,7 @@ enum PhotoSource {
 }
 
 /// サーバーが判定した、来歴にならなかった(または、なった)理由。
-/// `id` は `firebase/functions/src/index.ts` の `provenanceReason` と同じ文字列
+/// `id` は `firebase/functions/src/provenance.ts` の `ProvenanceReason` と同じ文字列
 /// (`test/features/plants/photo_provenance_test.dart` で突き合わせている)。
 enum ProvenanceReason {
   /// 来歴つき。アプリ内カメラで撮影し、撮影時刻と受信時刻の差が10分以内で、同じ画像が他にない。
