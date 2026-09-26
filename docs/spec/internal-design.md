@@ -138,7 +138,8 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 6. **削除**:株のドキュメントを消すと、`onPlantDeleted` が写真・記録・公開用データを後片付けする。アプリは記録・写真を1件ずつ消さない。
 7. **接続先の切り替え**:開発中はエミュレーター(7章)。`plantRepositoryProvider` の中で、Firestore 版に切り替える。画面のコードは変えない。
 
-### 4.3 ユーザー情報の保存先(`UserRepository`。#72)
+### 4.3 ユーザー情報の保存先(`UserRepository`。#72)と、アプリの入口(#73)
+- アプリの入口は `AppGate`(`features/onboarding/app_gate.dart`):`sessionProvider` を見て、サインインしていなければ `WelcomeScreen`、サインイン済みで未登録なら `OnboardingScreen`(年齢 → はじめの設定 → 好きなジャンル。最後に1回だけ `createProfile`)、登録済みなら `HomeScreen`。公開の説明を確認したかは `publishConfirmedProvider`(ようこそのチェックで true)で持ち、登録の `publishConfirmed` に渡す。
 | 操作 | 内容 | 例外 |
 |---|---|---|
 | `watchSession()` | サインインの状態と登録済みのユーザー情報(`Session`:サインインしていない / サインイン済み・未登録 / 登録済み)を流す。購読した時点の内容がすぐ流れ、変わるたびに流れる | — |

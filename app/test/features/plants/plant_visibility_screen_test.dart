@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rootlog/app.dart';
 import 'package:rootlog/data/plant_repository.dart';
+import 'package:rootlog/data/user_repository.dart';
 import 'package:rootlog/domain/plant.dart';
 import 'package:rootlog/domain/plant_input.dart';
 import 'package:rootlog/domain/plant_log.dart';
@@ -24,7 +25,10 @@ Future<(InMemoryPlantRepository, Plant)> pumpDetail(WidgetTester tester, {InMemo
   final plant = await repo.add(const PlantInput(name: 'モンステラ', variety: 'アルボ', source: '〇〇植物店', locationName: '窓辺'));
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [plantRepositoryProvider.overrideWithValue(repo)],
+      overrides: [
+        plantRepositoryProvider.overrideWithValue(repo),
+        userRepositoryProvider.overrideWithValue(InMemoryUserRepository.registered()), // 登録済みのユーザーで始める
+      ],
       child: const RootLogApp(),
     ),
   );
