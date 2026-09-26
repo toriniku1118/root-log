@@ -7,6 +7,8 @@ import 'package:rootlog/domain/plant.dart';
 import 'package:rootlog/domain/plant_genre.dart';
 import 'package:rootlog/domain/plant_health.dart';
 import 'package:rootlog/domain/plant_input.dart';
+import 'package:rootlog/domain/plant_log.dart';
+import 'package:rootlog/domain/plant_stage.dart';
 import 'package:rootlog/domain/plant_tag.dart';
 
 late final String rules;
@@ -53,6 +55,20 @@ void main() {
   test('健康状態の id がルールの healthStates() と同じ(順番も含めて)', () {
     final fromRules = quotedList(RegExp(r'function healthStates\(\)\s*\{\s*return\s*\[(.*?)\];', dotAll: true));
     expect(PlantHealth.values.map((h) => h.id).toList(), fromRules);
+  });
+
+  test('記録の種類の id がルールの type と同じ(順番も含めて)', () {
+    final fromRules = quotedList(RegExp(r'data\(\)\.type in \[(.*?)\]'));
+    expect(PlantLogType.values.map((t) => t.id).toList(), fromRules);
+  });
+
+  test('段階の id がルールの stage と同じ(順番も含めて)', () {
+    final fromRules = quotedList(RegExp(r'data\(\)\.stage in\s*\[(.*?)\]', dotAll: true));
+    expect(PlantStage.values.map((s) => s.id).toList(), fromRules);
+  });
+
+  test('記録のメモの上限がルールと同じ', () {
+    expect(PlantLogLimits.note, limit(RegExp(r"optStr\('note', (\d+)\)")));
   });
 
   test('購入価格の範囲(0〜上限の整数)がルールと同じ', () {

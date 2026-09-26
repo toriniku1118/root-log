@@ -26,9 +26,9 @@
 | `functions/src/image.ts`(写真の処理) | 縮小後に EXIF・GPS・機種名が残らない(空振りにならないよう、元画像に入っていることも確認)、向きの反映、長辺の縮小と非拡大、画素数の上限 | `npm test`(`functions/`) | 済み(6件) |
 | `functions/src/publicPlant.ts`(公開用データの作り方) | 購入価格・健康状態・置き場所・鉢の号数が出ない(項目を名指しで選ぶ)、公開範囲ごとの出し分け、健康状態の記録は公開しない、公開の説明を確認するまで書き出さない(`hasPublishAck`。REQ-049) | `npm test`(`functions/`) | 済み(13件。わざと価格を書き出す変更を入れて、テストが失敗することを確認した。#50) |
 | 来歴の判定(`index.ts`) | 撮影元 `camera`、撮影時刻との差10分以内、タイムゾーンあり/なし、重複、撮影時刻なし | 判定の部分を関数として切り出して `functions` の単体テストに加える | 未実装(予定) |
-| 記録の検証(`validatePlantLog`)・水やりの日数の計算・「いつもの間隔」 | 記録の条件、前回からの日数、間隔の出し方(Q4) | `flutter test` | 未実装(予定) |
+| 記録の検証(`validatePlantLog`)・段階/種類の値・水やりの日数の計算・「いつもの間隔」 | 記録の条件(メモ・日時・種類ごとの必須と禁止)、前回からの日数、間隔の出し方(Q4) | `flutter test` | 記録の検証は済み(`plant_log_test.dart`。#64)。水やりの日数の計算・「いつもの間隔」は未実装(予定) |
 | 購入価格の検証(`validatePlantInput`)・健康状態の値(`PlantHealth`) | 購入価格の範囲(0〜99,999,999。上限ちょうどは通り+1・負数はエラー)、健康状態の id・表示名・初期値 | `flutter test` | 済み(`plant_input_test.dart`、`plant_health_test.dart`、`plant_repository_test.dart`。#50) |
-| 健康状態の変更(株の更新と記録の追加を同時に行う) | 変更で記録が1件増える。株の更新と記録の追加は同時に成功・失敗する | `flutter test` | 未実装(予定。株の詳細の記録を作るとき) |
+| 記録の保存先(`addLog` `updateLog` `deleteLog` `watchLogs`)・健康状態の変更(`changeHealth`) | 追加(記録した時刻は保存先の時刻)・新しい順・更新で種類と記録した時刻が変わらない・削除・株の削除で記録も消える・健康状態の変更で株と記録が同時に変わる(失敗したら両方変わらない・同じ状態なら何もしない) | `flutter test` | 済み(`plant_log_repository_test.dart`。#64) |
 
 ### 2.2 結合テスト(内部設計)
 | 対象 | 観点 | 方法 | 状態 |
@@ -60,7 +60,7 @@
 
 | 対象 | コマンド | 結果 |
 |---|---|---|
-| Flutter(単体・ウィジェット) | `docker compose run --rm flutter bash -c "flutter pub get && flutter test"` | 101件合格(`plant_repository_test` 12、`plant_genre_test` 5、`plant_health_test` 3、`plant_input_test` 27、`plant_rules_consistency_test` 11、`plant_groups_test` 4、`home_screen_test` 8、`add_plant_screen_test` 17、`edit_plant_screen_test` 14)。`flutter analyze` も問題なし(2026-09-26、#62) |
+| Flutter(単体・ウィジェット) | `docker compose run --rm flutter bash -c "flutter pub get && flutter test"` | 132件合格(`plant_repository_test` 12、`plant_genre_test` 5、`plant_health_test` 3、`plant_input_test` 27、`plant_rules_consistency_test` 14、`plant_groups_test` 4、`home_screen_test` 8、`add_plant_screen_test` 17、`edit_plant_screen_test` 14、`plant_log_test` 11、`plant_log_repository_test` 17)。`flutter analyze` も問題なし(2026-09-26、#64) |
 | 権限ルール(Firestore・Storage) | `docker compose run --rm firebase bash -c "npm install && npm test"` | 79件合格(Firestore 65、Storage 14) |
 | サーバー処理の型チェック | `docker compose run --rm firebase bash -c "cd functions && npm install && npm run build"` | 合格 |
 | 写真の処理(位置情報の削除など) | `docker compose run --rm firebase bash -c "cd functions && npm install && npm test"` | 19件合格(写真の処理 6、公開用データ 13) |
@@ -75,7 +75,9 @@
 | `app/test/domain/plant_input_test.dart` | 27 | REQ-006、007、047 |
 | `app/test/domain/plant_genre_test.dart` | 5 | REQ-003、007、008 |
 | `app/test/domain/plant_health_test.dart` | 3 | REQ-048 |
-| `app/test/domain/plant_rules_consistency_test.dart` | 11 | REQ-006、007、008、035、037、047、048 |
+| `app/test/domain/plant_rules_consistency_test.dart` | 14 | REQ-006、007、008、023、024、035、037、047、048 |
+| `app/test/domain/plant_log_test.dart` | 11 | REQ-023、024、048 |
+| `app/test/data/plant_log_repository_test.dart` | 17 | REQ-023、024、025、048 |
 | `app/test/data/plant_repository_test.dart` | 12 | REQ-006、007、009、047、048 |
 | `app/test/features/home/plant_groups_test.dart` | 4 | REQ-005 |
 | `app/test/features/home/home_screen_test.dart` | 8 | REQ-004、005、006、011 |
@@ -152,8 +154,8 @@
 | 020 | — | 10章 | 単体:`image.test`(長辺の縮小・拡大しない) | 結合:画質の区別を続ける場合、無料/有料で画質が変わる(未決) |
 | 021 | 3.1 | — | (広告の仕組みを入れていないことをレビューで確認) | 広告を入れるステップ2で、撮影から保存までに出ないことを確認 |
 | 022 | FN-14 | Q4 | ルール:水やりの記録を本人が作れる | 単体:前回からの日数・「いつもの間隔」。システム:長押し・詳細から1タップで記録(巡回モードは後回し) |
-| 023 | SCR-08、FN-13 | 3.3 | ルール:未来の日時は作れない・記録時刻を偽れない・種類と記録時刻は変えられない・`system` 種類は作れない・他人は読み書きできない | 単体:`validatePlantLog`。システム:記録画面 |
-| 024 | SCR-08、FN-13 | 3.3 | (段階の値の検証はルールにあるが、専用のテストは未実装) | ルール:決めた段階以外は拒否。システム:段階の記録 |
+| 023 | SCR-08、FN-13 | 3.3 | ルール:未来の日時は作れない・記録時刻を偽れない・種類と記録時刻は変えられない・`system` 種類は作れない・他人は読み書きできない | 単体(済み):`plant_log_test`(検証)・`plant_log_repository_test`(保存先)。結合(済み):`plant_rules_consistency_test`(種類・段階・メモの上限)。システム:記録画面(順3の後半) |
+| 024 | SCR-08、FN-13 | 3.3 | (段階の値の検証はルールにあるが、専用のテストは未実装) | ルール:決めた段階以外は拒否。単体(済み):`plant_log_test`(段階の値・種類が段階のとき必須)。結合(済み):`plant_rules_consistency_test`(段階の id)。システム:段階の記録(順3の後半) |
 | 025 | SCR-08、FN-15 | — | なし(未実装) | システム:時系列の表示 |
 | 026 | SCR-08、FN-16 | — | (後回し) | (後回し。戻すときに、システム:再生) |
 | 027 | SCR-07、FN-17 | Q6 | (後回し) | (後回し。戻すときに、システム:置き場所の順・撮影→水やり→次へ・完了画面。受入:実機(撮影)) |
@@ -178,7 +180,7 @@
 | 045 | FN-25 | 7章6 | なし(未実装) | 5章の数字を集計する手順を作り、テスト用のデータで確かめる |
 | 046 | SCR-13、FN-26 | 8章7 | ルール:既存の Storage テスト(「他人は非公開の写真を読めない」など)で、他人の写真を取れないことを確認済み | 単体:期間・株・写真の絞り込み、ファイル名(連番・使えない文字の置き換え)。システム:期間・株・写真の選択、0枚のときの案内、途中でやめても保存済みが残る、削除した写真が入らない(結合:エミュレーターで位置情報が入っていない)。受入:実機で写真フォルダに保存できる |
 | 047 | SCR-05 | 3.5、5章 | ルール(済み):上限ちょうどは通り+1・負数・小数・文字列は拒否、`null` は可、他人が読めない、公開用データを直接書けない。単体(済み):`plant_input_test`・`plant_repository_test`。サーバー(済み):`publicPlant.test.ts` で公開用データに価格が出ない | システム(済み):`add_plant_screen_test`(空欄・範囲外・カンマ・全角、「自分だけが見られます」の表示) |
-| 048 | SCR-08、SCR-04、FN-27 | 3.5 | ルール(済み):5値以外を拒否、記録の種類 `health` は値が必須・ほかの種類では付けられない、他人が読み書きできない。単体(済み):`plant_health_test`。サーバー(済み):健康状態の記録は公開しない | 単体:健康状態の変更で記録が1件増える。システム:履歴に「○○ → ○○」と出る(株の詳細の実装のとき) |
+| 048 | SCR-08、SCR-04、FN-27 | 3.5 | ルール(済み):5値以外を拒否、記録の種類 `health` は値が必須・ほかの種類では付けられない、他人が読み書きできない。単体(済み):`plant_health_test`。サーバー(済み):健康状態の記録は公開しない | 単体(済み):`plant_log_repository_test`(健康状態の変更で株と記録が同時に変わる・失敗したら両方変わらない)。システム:履歴に「○○ → ○○」と出る(株の詳細の実装のとき) |
 
 ## 8. 「見えてはいけないものが見えない」テスト
 権限ルールを変えたら追加する(REQ-044)。現状と、これから追加するもの。

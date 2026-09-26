@@ -82,7 +82,7 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 ### 3.3 これから追加するデータ
 | データ | 保存先 | 内容 | 状態 |
 |---|---|---|---|
-| 記録 `PlantLog` | `…/logs/{logId}` | `type`(`water` `repot` `fertilize` `prune` `note` `stage` `health`)、`occurredAt`(今日以前)、`recordedAt`(サーバー時刻)、`note`(〜500)、`stage`(`acquired` `rooted` `new_leaf` `repotted` `flowered` `divided` `recovered` `died`) | ルールは済み。アプリは未 |
+| 記録 `PlantLog` | `…/logs/{logId}` | `type`(`water` `repot` `fertilize` `prune` `note` `stage` `health`)、`occurredAt`(今日以前)、`recordedAt`(サーバー時刻)、`note`(〜500)、`stage`(`acquired` `rooted` `new_leaf` `repotted` `flowered` `divided` `recovered` `died`) | ルール・アプリのデータ・検証・保存先(メモリ)は実装済み(#64)。画面は未 |
 | 写真 `PlantPhoto` | `…/photos/{photoId}` | 保存先、サイズ、撮影元、受信時刻(`receivedAt`)、来歴かどうか(`provenance`)と理由(`provenanceReason`)など | サーバーが作る。アプリは読むだけ |
 | ユーザー `UserProfile` | `users/{uid}` | 表示名(1〜30、必須)、年齢区分、好きなジャンル(9個まで)、都道府県(コード `01`〜`47` または空)、通知設定(`notify`) | ルールは済み。アプリは未 |
 
@@ -121,7 +121,12 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 | `watchAll()` | 株の一覧を流す。購読した時点の内容がすぐ流れ、変更のたびに新しい一覧が流れる | — |
 | `add(input)` | 株を追加する。初期公開(範囲は写真のみ) | 条件を満たさないとき `PlantValidationException`(1件も増えない) |
 | `update(id, input)` | 株を更新する。共有設定・作成日時は変えない。更新日時は進む | 存在しないとき `PlantNotFoundException`。条件を満たさないとき `PlantValidationException`(元の内容が残る) |
-| `delete(id)` | 株を削除する。存在しなくてもエラーにしない | — |
+| `delete(id)` | 株を削除する。存在しなくてもエラーにしない。**その株の記録も消える**(サーバーの後片付けに相当) | — |
+| `watchLogs(plantId)` | 株の記録の一覧を流す(新しい順:出来事の日時 → 記録した時刻 → あとに追加したものが上)。購読した時点の内容がすぐ流れ、変更のたびに流れる | 株がなければ空 |
+| `addLog(plantId, input)` | 記録を追加する。記録した時刻(`recordedAt`)は保存先の時刻で決まる | 株がなければ `PlantNotFoundException`、条件を満たさないとき `PlantLogValidationException` |
+| `updateLog(plantId, logId, occurredAt:, note:)` | 記録のメモと日時を直す。種類・段階・健康状態・記録した時刻は変えられない | 記録がなければ `PlantLogNotFoundException`、条件を満たさないとき `PlantLogValidationException`(元の内容が残る) |
+| `deleteLog(plantId, logId)` | 記録を削除する。存在しなくてもエラーにしない | — |
+| `changeHealth(plantId, health, note:, occurredAt:)` | 株の健康状態を変え、変更を記録(種類 `health`)として残す。**株の更新と記録の追加は、同時に成功するか同時に失敗する**。いまと同じ状態なら何もしない(記録も増えない) | 株がなければ `PlantNotFoundException`、条件を満たさないとき `PlantLogValidationException`(株も記録も変わらない) |
 
 ### 4.2 Firestore 版に必要なこと(権限ルールとの取り決め)
 1. **作成**:`visibility.public` は `true`、`scope` は `photos`。`hasProvenance` は含めない。`createdAt` と `updatedAt` はサーバー時刻(`FieldValue.serverTimestamp()`)。
@@ -151,7 +156,7 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 
 - 前後の空白は取り除き、空欄は「未設定」(`null`)にする(`PlantInput.normalized()`)。
 - **一致の見張り**:`test/domain/plant_rules_consistency_test.dart` が、`firebase/firestore.rules` の文字列を読み、ジャンル・タグ・公開範囲の id、文字数の上限、「新規作成は非公開を強制」「来歴の印はサーバー専用」がアプリと同じかを確かめる。ルールかアプリのどちらかを変えたら、このテストが落ちる。
-- 記録(`PlantLog`)にも同じ形で、`validatePlantLog`(メモ〜500文字、日時は今日以前、種類・段階は決めた値)を足す。
+- 記録(`PlantLog`)の検証は `validatePlantLog`(実装済み・#64)。条件は `validLog`(権限ルール)と同じ:メモは500文字まで(UTF-16。種類がメモのときは必須)、日時は今日以前、種類が段階のときは段階が必須・健康状態のときは健康状態が必須・ほかの種類では付けられない。段階の値(8つ)と種類の値(7つ)は `PlantStage`・`PlantLogType` の id で、`plant_rules_consistency_test.dart` がルールと突き合わせる。
 
 ## 6. エラー処理
 | 起きること | 例外・状態 | 画面での扱い |
