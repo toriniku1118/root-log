@@ -60,7 +60,7 @@
 
 | 対象 | コマンド | 結果 |
 |---|---|---|
-| Flutter(単体・ウィジェット) | `docker compose run --rm flutter bash -c "flutter pub get && flutter test"` | 87件合格(`plant_repository_test` 12、`plant_genre_test` 5、`plant_health_test` 3、`plant_input_test` 27、`plant_rules_consistency_test` 11、`plant_groups_test` 4、`home_screen_test` 8、`add_plant_screen_test` 17)。`flutter analyze` も問題なし(2026-09-26、#17) |
+| Flutter(単体・ウィジェット) | `docker compose run --rm flutter bash -c "flutter pub get && flutter test"` | 101件合格(`plant_repository_test` 12、`plant_genre_test` 5、`plant_health_test` 3、`plant_input_test` 27、`plant_rules_consistency_test` 11、`plant_groups_test` 4、`home_screen_test` 8、`add_plant_screen_test` 17、`edit_plant_screen_test` 14)。`flutter analyze` も問題なし(2026-09-26、#62) |
 | 権限ルール(Firestore・Storage) | `docker compose run --rm firebase bash -c "npm install && npm test"` | 79件合格(Firestore 65、Storage 14) |
 | サーバー処理の型チェック | `docker compose run --rm firebase bash -c "cd functions && npm install && npm run build"` | 合格 |
 | 写真の処理(位置情報の削除など) | `docker compose run --rm firebase bash -c "cd functions && npm install && npm test"` | 19件合格(写真の処理 6、公開用データ 13) |
@@ -80,6 +80,7 @@
 | `app/test/features/home/plant_groups_test.dart` | 4 | REQ-005 |
 | `app/test/features/home/home_screen_test.dart` | 8 | REQ-004、005、006、011 |
 | `app/test/features/plants/add_plant_screen_test.dart` | 17 | REQ-006、007、008、047 |
+| `app/test/features/plants/edit_plant_screen_test.dart` | 14 | REQ-009、010 |
 | `firebase/tests/firestore.rules.test.ts` | 65 | REQ-006、007、008、009、023、028、035〜038、047、048 |
 | `firebase/tests/storage.rules.test.ts` | 14 | REQ-012、013、016、035 |
 | `firebase/functions/src/image.test.ts` | 6 | REQ-016、020 |
@@ -137,8 +138,8 @@
 | 006 | SCR-05、FN-05 | 3.2・4・5章 | 単体:`plant_input_test`、`plant_repository_test`。結合:`plant_rules_consistency_test`、ルール(本人だけ作成・非公開で作成・文字数) | システム(済み):`add_plant_screen_test`(必須・上限・二重登録・入手日・戻る確認ほか)。受入:実機・Web で確認 |
 | 007 | SCR-03、SCR-05 | 3.2 | 単体:`plant_genre_test`(9種・株に選べる8種)、`plant_input_test`(1〜3個)。結合:`plant_rules_consistency_test`。ルール:1〜3個は通り、0個・4個・重複・知らない値・実生は拒否、旧項目 `genre` は拒否 | システム(済み):`add_plant_screen_test`(初期選択・1〜3個・実生が出ない)。受入:実機・Web で確認 |
 | 008 | SCR-05 | 3.2 | 単体:`plant_genre_test`(タグ)。結合:`plant_rules_consistency_test`(タグの id)。ルール:「provenance」タグは付けられない | システム(済み):`add_plant_screen_test`(タグの選択と保存) |
-| 009 | SCR-05、FN-06 | 4.2 | 単体:`plant_repository_test`(更新)。ルール:更新できる・作成日時は変えられない・来歴の印の後も更新できる | システム:編集画面 |
-| 010 | SCR-05、FN-07 | 4.2、10章 | 単体:`plant_repository_test`(一覧の購読のテストの中で削除を1回使うだけ。専用のテストは未実装) | 単体:削除の専用のテスト。結合:エミュレーターで `onPlantDeleted`(写真・記録・公開用データの後片付け)。システム:確認つき削除 |
+| 009 | SCR-05、FN-06 | 4.2 | 単体:`plant_repository_test`(更新)。ルール:更新できる・作成日時は変えられない・来歴の印の後も更新できる | システム(済み):`edit_plant_screen_test`(今の値が入る・更新・空にする・エラー・株がすでにない・戻る確認)。受入:実機・Web で確認 |
+| 010 | SCR-05、FN-07 | 4.2、10章 | 単体:`plant_repository_test`(一覧の購読のテストの中で削除を1回使うだけ。専用のテストは未実装) | システム(済み):`edit_plant_screen_test`(確認・やめる・削除・最後の1株)。単体:削除の専用のテスト(保存先)は未。結合:エミュレーターで `onPlantDeleted`(写真・記録・公開用データの後片付け)。システム:確認つき削除 |
 | 011 | SCR-04 | 1章 | システム:`home_screen_test`(500株で、見えている分だけ描画) | — |
 | 012 | SCR-06、FN-08 | 8章 | 結合:Storage ルール(本人がアップロードできる・株と撮影元の指定が必須) | 受入:実機(カメラ) |
 | 013 | SCR-06、FN-08 | 8章 | 結合:Storage ルール(撮影元は `camera` / `gallery` 以外不可) | システム:「来歴にならない」の表示。受入:実機 |

@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants.dart';
 import '../../domain/plant.dart';
 import '../../providers.dart';
-import '../plants/add_plant_screen.dart';
+import '../plants/plant_form_screen.dart';
 import 'plant_groups.dart';
 
 /// ホーム(植物リスト)。株を置き場所ごとにまとめて表示する。
@@ -33,7 +33,11 @@ class HomeScreen extends ConsumerWidget {
 }
 
 void _openAddPlant(BuildContext context) {
-  Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AddPlantScreen()));
+  Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const PlantFormScreen()));
+}
+
+void _openEditPlant(BuildContext context, Plant plant) {
+  Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => PlantFormScreen(plant: plant)));
 }
 
 class _EmptyState extends StatelessWidget {
@@ -128,6 +132,8 @@ class _PlantTile extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
+        // 暫定:株の詳細(SCR-08。順3)ができるまでは、タップで編集画面を開く
+        onTap: () => _openEditPlant(context, plant),
         title: Text(plant.name),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
