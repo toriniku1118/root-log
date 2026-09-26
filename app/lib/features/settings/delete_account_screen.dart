@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers.dart';
+import '../download/download_screen.dart';
 
 /// アカウント削除(SCR-12)。削除される内容を説明し、確認してから削除する(二段階)。
 ///
@@ -70,6 +71,14 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
           const Text('・ログイン情報'),
           const SizedBox(height: 8),
           const Text('※ 写真は、削除するとダウンロードできません。'),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            key: const Key('download-first'),
+            onPressed: _deleting
+                ? null
+                : () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const DownloadScreen())),
+            child: const Text('先に写真をダウンロード'),
+          ),
           const SizedBox(height: 24),
           FilledButton(
             key: const Key('delete-account'),

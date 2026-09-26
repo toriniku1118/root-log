@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'data/photo_saver.dart';
 import 'data/plant_repository.dart';
 import 'data/user_repository.dart';
 import 'domain/plant.dart';
@@ -46,3 +47,7 @@ final lastPhotoProvider = Provider.family<DateTime?, String>((ref, plantId) {
   final photos = ref.watch(plantPhotosProvider(plantId)).value ?? const <PlantPhoto>[];
   return photos.firstOrNull?.receivedAt; // 新しい順。最初が最新
 });
+
+/// 写真を端末の写真フォルダに保存する差し替え口。今は動作確認用(実際には保存しない)。
+/// 端末で確かめる段階(順13)で、本物に差し替える。
+final photoSaverProvider = Provider<PhotoSaver>((ref) => InMemoryPhotoSaver());

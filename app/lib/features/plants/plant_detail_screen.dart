@@ -8,6 +8,7 @@ import '../../domain/plant_log.dart';
 import '../../domain/plant_photo.dart';
 import '../../domain/plant_stage.dart';
 import '../../providers.dart';
+import '../download/download_screen.dart';
 import 'care.dart';
 import 'log_dialog.dart';
 import 'plant_form_screen.dart';
@@ -327,6 +328,17 @@ class _PlantDetailScreenState extends ConsumerState<PlantDetailScreen> {
                     onTap: () => _editLog(entry.log!),
                   ),
             ],
+          const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              key: const Key('open-download'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => DownloadScreen(initialPlantId: widget.plantId)),
+              ),
+              child: const Text('写真をダウンロード'),
+            ),
+          ),
         ],
       ),
     );
