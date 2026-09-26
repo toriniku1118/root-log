@@ -67,4 +67,22 @@ class Plant {
   final PlantVisibility visibility;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  /// 健康状態だけを変えた株(そのほかの項目・作成日時・共有設定は変わらない)。
+  Plant withHealth(PlantHealth newHealth, {required DateTime updatedAt}) => Plant(
+        id: id,
+        name: name,
+        genres: genres,
+        tags: tags,
+        visibility: visibility,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+        variety: variety,
+        acquiredAt: acquiredAt,
+        source: source,
+        locationName: locationName,
+        potSize: potSize,
+        purchasePrice: purchasePrice,
+        health: newHealth,
+      );
 }
