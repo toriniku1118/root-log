@@ -22,8 +22,8 @@ import { onDocumentDeleted, onDocumentWritten } from 'firebase-functions/v2/fire
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions';
 import sharp from 'sharp';
-import exifReader from 'exif-reader';
 import { cleanImage } from './image.js';
+import { extractCaptureTime, judgeProvenance } from './provenance.js';
 import { buildPublicPlantDoc, hasPublishAck, type PublicScope } from './publicPlant.js';
 import { createHash, randomUUID } from 'node:crypto';
 
@@ -34,8 +34,6 @@ setGlobalOptions({ region: 'asia-northeast1', maxInstances: 10 });
 const db = getFirestore();
 const bucket = () => getStorage().bucket();
 
-/** 来歴として認める条件:アプリ内カメラで撮影し、撮影時刻と受信時刻の差がこの範囲内 */
-const PROVENANCE_MAX_DELAY_MS = 10 * 60 * 1000;
 /** 無料プランの保存サイズ(長辺)。有料プランは高画質 */
 const FREE_LONG_EDGE = 1600;
 const PREMIUM_LONG_EDGE = 3000;
@@ -44,22 +42,6 @@ const MAX_INPUT_PIXELS = 40_000_000;
 
 /** 公開用データのID。植物IDは利用者が決められるため、必ず所有者のIDと組み合わせる */
 const publicPlantId = (uid: string, plantId: string) => `${uid}_${plantId}`;
-
-/**
- * EXIF の撮影時刻は端末の現地時刻で、exif-reader は UTC として読む。OffsetTimeOriginal があれば正確に直し、
- * ない場合だけ1時間単位のずれ(-14〜+14時間)を許容したうえで、受信時刻との差が PROVENANCE_MAX_DELAY_MS 以内かを判定する。
- * 注意:撮影元と EXIF は端末側の情報で、改造したアプリなら偽装できる。確実に保証できるのは「サーバーが受信した時刻」だけ。
- * ステップ1の実機テスト(iOS/Android)で精度を確認・調整する。
- */
-function isWithinCaptureWindow(receivedMs: number, capturedMs: number, offsetKnown: boolean): boolean {
-  const HOUR = 3_600_000;
-  const range = offsetKnown ? 0 : 14;
-  for (let k = -range; k <= range; k++) {
-    const delay = receivedMs - (capturedMs - k * HOUR); // 受信は撮影より後
-    if (delay >= -60_000 && delay <= PROVENANCE_MAX_DELAY_MS) return true;
-  }
-  return false;
-}
 
 /** 植物に来歴の写真が1枚以上あるかを数え直して、来歴の印を更新する */
 async function refreshProvenanceFlag(uid: string, plantId: string) {
@@ -113,25 +95,7 @@ export const processUpload = onObjectFinalized(
       if (meta.format !== 'jpeg' && meta.format !== 'png') throw new Error(`unsupported format: ${meta.format}`);
 
       // 元画像の撮影時刻(EXIF)は来歴の判定にだけ使い、保存しない。編集時刻(Image.DateTime)は使わない
-      let capturedAt: Date | null = null;
-      let offsetKnown = false;
-      if (meta.exif) {
-        try {
-          const exif = exifReader(meta.exif);
-          const photo = exif?.Photo as Record<string, unknown> | undefined;
-          const dt = photo?.DateTimeOriginal;
-          capturedAt = dt instanceof Date ? dt : null;
-          const off = photo?.OffsetTimeOriginal;
-          const m = typeof off === 'string' ? /^([+-])(\d{2}):(\d{2})$/.exec(off) : null;
-          if (capturedAt && m) {
-            const sign = m[1] === '+' ? 1 : -1;
-            capturedAt = new Date(capturedAt.getTime() - sign * (Number(m[2]) * 60 + Number(m[3])) * 60_000);
-            offsetKnown = true;
-          }
-        } catch {
-          capturedAt = null;
-        }
-      }
+      const captured = extractCaptureTime(meta.exif);
 
       const isPremium = (await db.doc(`users/${uid}`).get()).get('plan') === 'premium';
       const longEdge = isPremium ? PREMIUM_LONG_EDGE : FREE_LONG_EDGE;
@@ -139,19 +103,6 @@ export const processUpload = onObjectFinalized(
       // 位置情報を含むメタデータをすべて削除して縮小する
       const cleaned = await cleanImage(original, longEdge, MAX_INPUT_PIXELS);
       const sha256 = createHash('sha256').update(cleaned.data).digest('hex');
-
-      // 来歴の判定
-      let provenance = false;
-      let provenanceReason = 'gallery';
-      if (source === 'camera') {
-        if (!capturedAt) provenanceReason = 'no_capture_time';
-        else if (!isWithinCaptureWindow(receivedAt.toMillis(), capturedAt.getTime(), offsetKnown))
-          provenanceReason = 'capture_time_mismatch';
-        else {
-          provenance = true;
-          provenanceReason = 'ok';
-        }
-      }
 
       // 先に画像を保存し、その後で写真の記録と重複検出用データを同じトランザクションで作る
       const photoId = randomUUID();
@@ -169,14 +120,21 @@ export const processUpload = onObjectFinalized(
           const h = await tx.get(hashRef);
           const duplicateOf = h.exists ? (h.get('photoPath') as string) : null;
           if (!duplicateOf) tx.set(hashRef, { photoPath, createdAt: receivedAt });
+          // 来歴の判定(重複は、ほかの理由より優先)
+          const { provenance, provenanceReason } = judgeProvenance({
+            source,
+            captured,
+            receivedMs: receivedAt.toMillis(),
+            isDuplicate: duplicateOf != null,
+          });
           tx.set(db.doc(photoPath), {
             storagePath,
             width: cleaned.info.width,
             height: cleaned.info.height,
             source,
             receivedAt,
-            provenance: provenance && !duplicateOf,
-            provenanceReason: duplicateOf ? 'duplicate' : provenanceReason,
+            provenance,
+            provenanceReason,
             sha256,
             duplicateOf,
           });

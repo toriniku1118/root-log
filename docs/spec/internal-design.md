@@ -226,7 +226,7 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 | `onPlantWritten` / `onPlantLogWritten` | 株・記録の作成・更新 | 公開を選んだ株だけ、選んだ範囲を `publicPlants` に書き出す(本人が公開の説明を確認済み=`users/{uid}.publishAckAt` があるときだけ。確認前は書き出さず、あれば消す。確認した時点で、公開中の株をまとめて書き出す)。非公開に戻したら、公開用データと写真のコピーを削除 | (ステップ3まで、アプリは参照しない) |
 | `deleteAccount` | アプリからの呼び出し(App Check 必須) | 公開用データ・写真・記録・ログイン情報をすべて削除 | アカウントを消す |
 
-- 来歴の判定の定数(`firebase/functions/src/index.ts`):撮影時刻と受信時刻の差は10分以内(`PROVENANCE_MAX_DELAY_MS`)。タイムゾーン情報がない場合は1時間単位のずれ(-14〜+14時間)を許容する。画質は無料 `FREE_LONG_EDGE = 1600`、有料 `PREMIUM_LONG_EDGE = 3000`(`plan == 'premium'` のとき)。
+- 来歴の判定(`firebase/functions/src/provenance.ts`。Firebase に依存しない関数として `processUpload` から切り出した=#84):`extractCaptureTime`(EXIF の撮影時刻 `DateTimeOriginal` と時差 `OffsetTimeOriginal`。編集時刻は使わない。壊れた EXIF は null)、`isWithinCaptureWindow`(撮影時刻と受信時刻の差は、撮影の1分前〜10分後。`PROVENANCE_MAX_DELAY_MS`・`PROVENANCE_CLOCK_SKEW_MS`。時差が分からない場合だけ、1時間単位のずれ(-14〜+14時間)を許容する)、`judgeProvenance`(優先順は 重複 → 端末の写真 → 撮影時刻なし → 窓の外 → ok。来歴つきを返すのは ok のときだけ)。アプリの `ProvenanceReason`・`PhotoSource` の id は、この型と `photo_provenance_test` で突き合わせる。画質は無料 `FREE_LONG_EDGE = 1600`、有料 `PREMIUM_LONG_EDGE = 3000`(`plan == 'premium'` のとき)。
 - 来歴の理由(`provenanceReason`):`ok` `gallery` `no_capture_time` `capture_time_mismatch` `duplicate`。
 - 購入価格は、公開用データに書き出さない(書き出す項目は決まっており、価格は入れない)。健康状態を公開に含めるかは未決(要件 Q12)。書き出す項目は `functions/src/publicPlant.ts` の `buildPublicPlantDoc` だけで決めている(名指しで選ぶ。健康状態の記録は公開しない)。テストは `publicPlant.test.ts` と `test-plan.md` 8章。
 - 限界(設計0の1.4):撮影元と撮影時刻は端末側の情報で、改造したアプリなら偽装できる。確実なのはサーバーの受信時刻だけ。別の株を撮って来歴にすることも防げない。画面は「この日時までに撮影された写真」と表示する。

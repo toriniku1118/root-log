@@ -39,20 +39,22 @@ void main() {
     });
   });
 
-  group('サーバーの値との一致(firebase/functions/src/index.ts・storage.rules)', () {
+  group('サーバーの値との一致(firebase/functions/src/provenance.ts・index.ts・storage.rules)', () {
+    late final String provenance;
     late final String server;
     late final String storageRules;
     setUpAll(() {
+      provenance = File('../firebase/functions/src/provenance.ts').readAsStringSync();
       server = File('../firebase/functions/src/index.ts').readAsStringSync();
       storageRules = File('../firebase/storage.rules').readAsStringSync();
     });
 
-    test('来歴の理由の id が、サーバーが書く provenanceReason と同じ', () {
-      final fromServer = <String>{
-        ...RegExp(r"provenanceReason = '([a-z_]+)'").allMatches(server).map((m) => m.group(1)!),
-        ...RegExp(r"provenanceReason: duplicateOf \? '([a-z_]+)'").allMatches(server).map((m) => m.group(1)!),
-      };
-      expect(ProvenanceReason.values.map((r) => r.id).toSet(), fromServer);
+    test('来歴の理由の id が、サーバーの型(ProvenanceReason)と、判定が返す値と同じ', () {
+      final union = RegExp(r'export type ProvenanceReason = ([^;]+);').firstMatch(provenance)!.group(1)!;
+      final inType = RegExp(r"'([a-z_]+)'").allMatches(union).map((m) => m.group(1)!).toSet();
+      final returned = RegExp(r"provenanceReason: '([a-z_]+)'").allMatches(provenance).map((m) => m.group(1)!).toSet();
+      expect(ProvenanceReason.values.map((r) => r.id).toSet(), inType);
+      expect(returned, inType); // 型にあって返されない・返されるのに型にない、がない
     });
 
     test('撮影元の id が、ルールとサーバーの source と同じ', () {
@@ -60,10 +62,14 @@ void main() {
       final ids = RegExp(r"'([a-z]+)'").allMatches(fromRules).map((m) => m.group(1)!).toList();
       expect(PhotoSource.values.map((s) => s.id).toList(), ids);
       expect(server, contains("(source !== 'camera' && source !== 'gallery')"));
+      final union = RegExp(r'export type PhotoSource = ([^;]+);').firstMatch(provenance)!.group(1)!;
+      expect(RegExp(r"'([a-z]+)'").allMatches(union).map((m) => m.group(1)!).toList(), ids);
     });
 
     test('来歴つきになるのは、理由が ok のときだけ(サーバーの判定)', () {
-      expect(server, contains("provenance = true;\n          provenanceReason = 'ok';"));
+      expect(provenance, contains("return { provenance: true, provenanceReason: 'ok' };"));
+      expect(RegExp('provenance: true').allMatches(provenance), hasLength(1)); // 来歴つきを返す場所は1か所だけ
+      expect(server, contains('judgeProvenance('));
       expect(ProvenanceReason.fromId('ok'), ProvenanceReason.ok);
       expect(ProvenanceReason.fromId('unknown'), isNull);
     });

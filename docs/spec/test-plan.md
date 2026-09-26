@@ -25,7 +25,7 @@
 | `features/home/plant_groups.dart` | 置き場所の名前順・未設定は最後、置き場所の中は追加順、件数が多くても全株が入る | `flutter test` | 済み(`plant_groups_test.dart`) |
 | `functions/src/image.ts`(写真の処理) | 縮小後に EXIF・GPS・機種名が残らない(空振りにならないよう、元画像に入っていることも確認)、向きの反映、長辺の縮小と非拡大、画素数の上限 | `npm test`(`functions/`) | 済み(6件) |
 | `functions/src/publicPlant.ts`(公開用データの作り方) | 購入価格・健康状態・置き場所・鉢の号数が出ない(項目を名指しで選ぶ)、公開範囲ごとの出し分け、健康状態の記録は公開しない、公開の説明を確認するまで書き出さない(`hasPublishAck`。REQ-049) | `npm test`(`functions/`) | 済み(13件。わざと価格を書き出す変更を入れて、テストが失敗することを確認した。#50) |
-| 来歴の判定(`index.ts`) | 撮影元 `camera`、撮影時刻との差10分以内、タイムゾーンあり/なし、重複、撮影時刻なし | 判定の部分を関数として切り出して `functions` の単体テストに加える | 未実装(予定) |
+| 来歴の判定(`functions/src/provenance.ts`。#84) | 判定の全分岐(ok・gallery・撮影時刻なし・窓の外(古すぎ・未来すぎ)・重複。重複が最優先。来歴つきは ok のときだけ)、窓の境界(10分ちょうど/1秒超、1分の時計のずれ)、時差あり/なし(なしのときだけ1時間単位のずれを許す。30分のずれは許さない)、EXIF の取り出し(撮影時刻を使う・編集時刻は使わない・時差でUTCに直す・壊れたEXIFは null) | `npm test`(`functions/`) | 済み(24件。重複の優先と窓の上限をわざと壊して、テストが失敗することを確認した) |
 | 記録の検証(`validatePlantLog`)・段階/種類の値・水やりの日数の計算・「いつもの間隔」 | 記録の条件(メモ・日時・種類ごとの必須と禁止)、前回からの日数、間隔の出し方(Q4) | `flutter test` | 記録の検証は済み(`plant_log_test.dart`。#64)。水やりの日数の計算・「いつもの間隔」は未実装(予定) |
 | 購入価格の検証(`validatePlantInput`)・健康状態の値(`PlantHealth`) | 購入価格の範囲(0〜99,999,999。上限ちょうどは通り+1・負数はエラー)、健康状態の id・表示名・初期値 | `flutter test` | 済み(`plant_input_test.dart`、`plant_health_test.dart`、`plant_repository_test.dart`。#50) |
 | 記録の保存先(`addLog` `updateLog` `deleteLog` `watchLogs`)・健康状態の変更(`changeHealth`) | 追加(記録した時刻は保存先の時刻)・新しい順・更新で種類と記録した時刻が変わらない・削除・株の削除で記録も消える・健康状態の変更で株と記録が同時に変わる(失敗したら両方変わらない・同じ状態なら何もしない) | `flutter test` | 済み(`plant_log_repository_test.dart`。#64) |
@@ -63,7 +63,7 @@
 | Flutter(単体・ウィジェット) | `docker compose run --rm flutter bash -c "flutter pub get && flutter test"` | 351件合格(`download_plan_test` 25、`download_screen_test` 16、`plant_repository_test` 15、`plant_genre_test` 5、`plant_health_test` 3、`plant_input_test` 27、`plant_rules_consistency_test` 19、`plant_groups_test` 4、`home_screen_test` 8、`add_plant_screen_test` 17、`edit_plant_screen_test` 14、`plant_log_test` 11、`plant_log_repository_test` 19、`story_test` 10、`plant_photo_repository_test` 12、`photo_provenance_test` 7、`plant_photos_test` 11、`plant_detail_screen_test` 25、`care_test` 7、`home_care_test` 11、`visibility_text_test` 10、`plant_visibility_screen_test` 13、`user_profile_test` 13、`user_repository_test` 18、`onboarding_test` 18、`settings_test` 13)。`flutter analyze` も問題なし(2026-09-26、#82) |
 | 権限ルール(Firestore・Storage) | `docker compose run --rm firebase bash -c "npm install && npm test"` | 79件合格(Firestore 65、Storage 14) |
 | サーバー処理の型チェック | `docker compose run --rm firebase bash -c "cd functions && npm install && npm run build"` | 合格 |
-| 写真の処理(位置情報の削除など) | `docker compose run --rm firebase bash -c "cd functions && npm install && npm test"` | 19件合格(写真の処理 6、公開用データ 13) |
+| 写真の処理(位置情報の削除など) | `docker compose run --rm firebase bash -c "cd functions && npm install && npm test"` | 43件合格(写真の処理 6、公開用データ 13、来歴の判定 24) |
 
 - 権限ルール(`firebase/`)・サーバー処理(`functions/`)を変えたら、上の3つ(権限ルール・型チェック・写真の処理)を実行する。
 - `sharp` などの写真処理のライブラリを更新したら、必ず写真の処理のテストで位置情報が消えることを確認する。
@@ -102,6 +102,7 @@
 | `firebase/tests/storage.rules.test.ts` | 14 | REQ-012、013、016、035 |
 | `firebase/functions/src/image.test.ts` | 6 | REQ-016、020 |
 | `firebase/functions/src/publicPlant.test.ts` | 13 | REQ-007、028、047、048 |
+| `firebase/functions/src/provenance.test.ts` | 24 | REQ-017、018 |
 
 ## 5. 4か月目の判定に使う数字(受入・FN-25)
 判定点は `docs/project/evaluation.md` 5章。ステップ1の判定の基準は「自分が続けている」「テスターの半数以上が4週後も週1回以上撮影」「テスターが来歴記録を『取引で見せたい』と答える」「セキュリティのフェーズ1必須項目を満たす」。
@@ -163,7 +164,7 @@
 | 014 | SCR-06、FN-09 | — | (後回し) | (後回し。戻すときに、システム:重ね表示。受入:実機) |
 | 015 | SCR-06、FN-10 | — | なし(未実装) | システム:比較表示 |
 | 016 | SCR-06 | 8・10章 | 単体:`image.test`(EXIF・GPS・機種名が残らない)。結合:Storage ルール(元画像は本人も読めない・上書き削除不可) | 結合:エミュレーターで `processUpload` を通す |
-| 017 | SCR-06、FN-11 | 10章 | ルール:アプリから写真の記録を作れない・書き換えられない | 単体:来歴の判定の関数。結合:`processUpload` の通し。受入:実機で撮影時刻とタイムゾーン |
+| 017 | SCR-06、FN-11 | 10章 | ルール:アプリから写真の記録を作れない・書き換えられない | 単体(済み):`provenance.test`(#84)。結合:`processUpload` の通し。受入:実機で撮影時刻とタイムゾーン |
 | 018 | SCR-04、SCR-08、FN-11 | 8章 4、10章 | 単体(済み):`photo_provenance_test`(文言・受信時刻の書式・「この日時までに」を来歴にならない写真に使わない・理由と撮影元の id がサーバー(`index.ts`・`storage.rules`)と同じ)、`plant_photo_repository_test`(来歴の印を写真から数え直す・編集で消えない)。システム(済み):`plant_photos_test`(来歴つきの印と文言・4つの理由ごとの文言・ホームの「来歴あり」)。「確認中」は未 |
 | 019 | SCR-08、FN-12 | 10章 | ルール:`systemLogs` は他人に読めない・アプリから書けない。単体(済み):`plant_photo_repository_test`(削除で数が増える・存在しない写真はエラーで数も増えない・株の削除で消える) | 結合:`deletePhoto`(欠落の記録)は Firestore 接続のとき。システム(済み):`plant_photos_test`(拡大・確認・「やめる」で残る・削除して「削除された写真があります(1枚)」・ホームの来歴あり消える) |
 | 020 | — | 10章 | 単体:`image.test`(長辺の縮小・拡大しない) | 結合:画質の区別を続ける場合、無料/有料で画質が変わる(未決) |
