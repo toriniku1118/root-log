@@ -10,6 +10,8 @@ import '../../providers.dart';
 import 'care.dart';
 import 'log_dialog.dart';
 import 'plant_form_screen.dart';
+import 'plant_visibility_screen.dart';
+import 'visibility_text.dart';
 import 'story.dart';
 
 /// 株の詳細(栽培ストーリー。SCR-08)。株の情報・記録ボタン・記録の時系列。
@@ -94,6 +96,17 @@ class _PlantDetailScreenState extends ConsumerState<PlantDetailScreen> {
     }
   }
 
+  Future<void> _openVisibility() async {
+    await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => PlantVisibilityScreen(plantId: widget.plantId)));
+    if (!mounted || _closing) return;
+    // 共有設定の画面を開いている間に、株がなくなっていた(画面が「株が見つかりません」を出している)。詳細も閉じる
+    final gone = ref.read(plantsProvider).value?.every((p) => p.id != widget.plantId) ?? false;
+    if (gone) {
+      _closing = true;
+      Navigator.of(context).pop();
+    }
+  }
+
   Future<void> _openEdit(Plant plant) async {
     final result = await Navigator.of(context).push<PlantFormResult>(
       MaterialPageRoute(builder: (_) => PlantFormScreen(plant: plant)),
@@ -154,6 +167,7 @@ class _PlantDetailScreenState extends ConsumerState<PlantDetailScreen> {
       appBar: AppBar(
         title: Text(plant.name),
         actions: [
+          TextButton(key: const Key('open-visibility'), onPressed: _openVisibility, child: const Text('共有設定')),
           TextButton(key: const Key('edit'), onPressed: () => _openEdit(plant), child: const Text('編集')),
         ],
       ),
@@ -162,6 +176,10 @@ class _PlantDetailScreenState extends ConsumerState<PlantDetailScreen> {
         children: [
           Text(plant.variety == null ? genreLabel : '$genreLabel・${plant.variety}', style: theme.textTheme.bodyLarge),
           if (info.isNotEmpty) Text(info, style: theme.textTheme.bodyMedium),
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(sharingSummary(plant.visibility), key: const Key('visibility-line'), style: theme.textTheme.bodyMedium),
+          ),
           if (plant.health != PlantHealth.initial)
             Padding(
               padding: const EdgeInsets.only(top: 4),

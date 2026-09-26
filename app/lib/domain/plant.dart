@@ -4,12 +4,13 @@ import 'plant_tag.dart';
 
 /// 公開の範囲(`firebase/firestore.rules` の visibility.scope)。
 enum PlantScope {
-  photos('photos'),
-  history('history'),
-  source('source');
+  photos('photos', '写真のみ'),
+  history('history', '履歴まで'),
+  source('source', '入手先まで');
 
-  const PlantScope(this.id);
+  const PlantScope(this.id, this.label);
   final String id;
+  final String label;
 }
 
 /// 共有設定。新しい株は初期公開・写真のみ(2026-09-26。オプトアウト)。公開はステップ3で使えるようになる。
@@ -67,6 +68,24 @@ class Plant {
   final PlantVisibility visibility;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  /// 共有設定だけを変えた株(そのほかの項目・作成日時・健康状態は変わらない)。
+  Plant withVisibility(PlantVisibility newVisibility, {required DateTime updatedAt}) => Plant(
+        id: id,
+        name: name,
+        genres: genres,
+        tags: tags,
+        visibility: newVisibility,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+        variety: variety,
+        acquiredAt: acquiredAt,
+        source: source,
+        locationName: locationName,
+        potSize: potSize,
+        purchasePrice: purchasePrice,
+        health: health,
+      );
 
   /// 健康状態だけを変えた株(そのほかの項目・作成日時・共有設定は変わらない)。
   Plant withHealth(PlantHealth newHealth, {required DateTime updatedAt}) => Plant(

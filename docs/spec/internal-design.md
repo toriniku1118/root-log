@@ -29,7 +29,7 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 | `data/plant_repository.dart` | `PlantRepository`(差し替え口)、`InMemoryPlantRepository`、`generatePlantId`、`PlantNotFoundException` | 株の保存・取得。今はメモリ上 |
 | `providers.dart` | `plantRepositoryProvider`、`plantsProvider` | 保存先の提供と、一覧の購読 |
 | `features/home/` | `HomeScreen`、`groupPlantsByLocation` | ホーム(SCR-04)と、置き場所ごとのまとめ |
-| `features/plants/` | `PlantDetailScreen`(株の詳細。SCR-08。#65)・`story.dart`(栽培ストーリーの組み立て。日付ごとのまとめ・健康状態の前の値)・`care.dart`(前回の水やりからの日数の計算と文言。暦の日付の差。株ごとの最後の水やりは `lastWateredProvider`)・`log_dialog.dart`(記録の入力ダイアログ)・`PlantFormScreen` | 株を追加・編集・削除する画面(SCR-05。追加=#17、編集・削除=#62)。株を渡すと編集。開いたときの入力の状態と比べて、戻るときの確認を決める |
+| `features/plants/` | `PlantDetailScreen`(株の詳細。SCR-08。#65)・`story.dart`(栽培ストーリーの組み立て。日付ごとのまとめ・健康状態の前の値)・`PlantVisibilityScreen`(共有設定。SCR-09。#70)・`visibility_text.dart`(「誰に何が見えるか」の説明文。サーバーの書き出しと食い違わないよう、テストで固定)・`care.dart`(前回の水やりからの日数の計算と文言。暦の日付の差。株ごとの最後の水やりは `lastWateredProvider`)・`log_dialog.dart`(記録の入力ダイアログ)・`PlantFormScreen` | 株を追加・編集・削除する画面(SCR-05。追加=#17、編集・削除=#62)。株を渡すと編集。開いたときの入力の状態と比べて、戻るときの確認を決める |
 
 - 新しい機能(記録・写真・設定・通知)も、同じ形で足す:`domain/` に形と検証、`data/` に差し替え口と実装、`features/` に画面、`providers.dart` で結ぶ。
 - 画面は、保存先が返す例外([6章](#6-エラー処理))を、日本語のメッセージにして出す。
@@ -126,6 +126,7 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 | `addLog(plantId, input)` | 記録を追加する。記録した時刻(`recordedAt`)は保存先の時刻で決まる | 株がなければ `PlantNotFoundException`、条件を満たさないとき `PlantLogValidationException` |
 | `updateLog(plantId, logId, occurredAt:, note:)` | 記録のメモと日時を直す。種類・段階・健康状態・記録した時刻は変えられない | 記録がなければ `PlantLogNotFoundException`、条件を満たさないとき `PlantLogValidationException`(元の内容が残る) |
 | `deleteLog(plantId, logId)` | 記録を削除する。存在しなくてもエラーにしない | — |
+| `setVisibility(id, visibility)` | 株の共有設定(公開/非公開と範囲)だけを変える。ほかの項目・作成日時・健康状態は変えず、更新日時は進む | 存在しないとき `PlantNotFoundException` |
 | `changeHealth(plantId, health, note:, occurredAt:)` | 株の健康状態を変え、変更を記録(種類 `health`)として残す。**株の更新と記録の追加は、同時に成功するか同時に失敗する**。いまと同じ状態なら何もしない(記録も増えない) | 株がなければ `PlantNotFoundException`、条件を満たさないとき `PlantLogValidationException`(株も記録も変わらない) |
 
 ### 4.2 Firestore 版に必要なこと(権限ルールとの取り決め)

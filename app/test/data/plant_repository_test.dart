@@ -69,6 +69,56 @@ void main() {
     expect(updated.health, PlantHealth.initial);
   });
 
+  test('共有設定を変えられる。変わるのは共有設定と更新日時だけ', () async {
+    final created = await repo.add(const PlantInput(
+      name: 'a',
+      genres: {PlantGenre.aroid},
+      variety: 'v',
+      source: 's',
+      locationName: 'l',
+      potSize: '5号',
+      purchasePrice: 1000,
+      tags: {PlantTag.rescue},
+    ));
+    expect(created.visibility.public, isTrue); // 初期公開
+    expect(created.visibility.scope, PlantScope.photos);
+
+    clockNow = DateTime(2026, 9, 27);
+    final updated = await repo.setVisibility(created.id, const PlantVisibility(public: true, scope: PlantScope.source));
+    expect(updated.visibility.public, isTrue);
+    expect(updated.visibility.scope, PlantScope.source);
+    expect(updated.updatedAt, DateTime(2026, 9, 27));
+    expect(updated.createdAt, created.createdAt);
+    expect(updated.name, 'a');
+    expect(updated.genres, {PlantGenre.aroid});
+    expect(updated.variety, 'v');
+    expect(updated.source, 's');
+    expect(updated.locationName, 'l');
+    expect(updated.potSize, '5号');
+    expect(updated.purchasePrice, 1000);
+    expect(updated.tags, {PlantTag.rescue});
+    expect(updated.health, created.health);
+    expect((await repo.watchAll().first).single.visibility.scope, PlantScope.source);
+
+    final priv = await repo.setVisibility(created.id, const PlantVisibility(public: false, scope: PlantScope.photos));
+    expect(priv.visibility.public, isFalse);
+  });
+
+  test('共有設定を変えても、編集(update)は共有設定を変えない', () async {
+    final created = await repo.add(const PlantInput(name: 'a'));
+    await repo.setVisibility(created.id, const PlantVisibility(public: false, scope: PlantScope.history));
+    final edited = await repo.update(created.id, const PlantInput(name: 'b'));
+    expect(edited.visibility.public, isFalse);
+    expect(edited.visibility.scope, PlantScope.history);
+  });
+
+  test('存在しない株の共有設定は変えられない', () async {
+    await expectLater(
+      repo.setVisibility('nothing', const PlantVisibility(public: false, scope: PlantScope.photos)),
+      throwsA(isA<PlantNotFoundException>()),
+    );
+  });
+
   test('条件を満たさない入力は追加できず、1件も増えない', () async {
     await expectLater(repo.add(const PlantInput(name: '')), throwsA(isA<PlantValidationException>()));
     expect(await repo.watchAll().first, isEmpty);
