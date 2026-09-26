@@ -84,7 +84,7 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 |---|---|---|---|
 | 記録 `PlantLog` | `…/logs/{logId}` | `type`(`water` `repot` `fertilize` `prune` `note` `stage` `health`)、`occurredAt`(今日以前)、`recordedAt`(サーバー時刻)、`note`(〜500)、`stage`(`acquired` `rooted` `new_leaf` `repotted` `flowered` `divided` `recovered` `died`) | ルール・アプリのデータ・検証・保存先(メモリ)は実装済み(#64)。画面は未 |
 | 写真 `PlantPhoto` | `…/photos/{photoId}` | 保存先、サイズ、撮影元、受信時刻(`receivedAt`)、来歴かどうか(`provenance`)と理由(`provenanceReason`)など | サーバーが作る。アプリは読むだけ |
-| ユーザー `UserProfile` | `users/{uid}` | 表示名(1〜30、必須)、年齢区分、好きなジャンル(9個まで)、都道府県(コード `01`〜`47` または空)、通知設定(`notify`) | ルールは済み。アプリは未 |
+| ユーザー `UserProfile` | `users/{uid}` | 表示名(1〜30、必須)、年齢区分、好きなジャンル(9個まで)、都道府県(コード `01`〜`47` または空)、通知設定(`notify`) | ルール・アプリのデータ・検証・保存先(メモリ・仮のユーザー1人分)は実装済み(#72)。画面は #73 |
 
 ### 3.4 通知設定(`users.notify`)
 - 種類は6つで、値はオン/オフ(真偽値)だけ:`photo`(撮影)、`event`(イベント)、`water`(水やり)、`weather`(季節・天気)、`reaction`(反応)、`stock`(入荷)。
@@ -138,6 +138,16 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 6. **削除**:株のドキュメントを消すと、`onPlantDeleted` が写真・記録・公開用データを後片付けする。アプリは記録・写真を1件ずつ消さない。
 7. **接続先の切り替え**:開発中はエミュレーター(7章)。`plantRepositoryProvider` の中で、Firestore 版に切り替える。画面のコードは変えない。
 
+### 4.3 ユーザー情報の保存先(`UserRepository`。#72)
+| 操作 | 内容 | 例外 |
+|---|---|---|
+| `watchSession()` | サインインの状態と登録済みのユーザー情報(`Session`:サインインしていない / サインイン済み・未登録 / 登録済み)を流す。購読した時点の内容がすぐ流れ、変わるたびに流れる | — |
+| `signIn(provider)` | サインインする(Firebase 接続前は仮。`SignInProvider`:Apple・Google の区別だけ)。登録済みの人は、そのまま登録済みになる | — |
+| `signOut()` | サインアウトする。登録した内容は残る(サインインしていない間は、内容を出さない) | — |
+| `createProfile(input)` | 初回の登録。**通知はすべてオフ**で作る。公開の説明を確認した日時(`publishAckAt`)・作成日時・更新日時は、保存先の時刻で決まる(後から変えられない) | サインインしていないとき `NotSignedInException`、すでに登録済みのとき `AlreadyRegisteredException`(年齢区分は後から変えられない)、条件を満たさないとき `UserProfileValidationException`(登録されない) |
+- 保存先は、メモリ上の `InMemoryUserRepository`(1人分)。Firebase 接続後に、Authentication と Firestore(`users/{uid}`)の版へ差し替える(7章)。
+- 登録は、初回の画面(年齢 → はじめの設定 → 好きなジャンル)の最後に、**1回だけ**行う(ルールが必須項目をまとめて要求するため)。
+
 ## 5. 入力検証
 - 検証は `validatePlantInput(input, now:)` に一元化する。画面は、その結果(項目ごとの日本語のメッセージ)を出すだけ。
 - 条件は権限ルールと同じにする。
@@ -157,6 +167,7 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 
 - 前後の空白は取り除き、空欄は「未設定」(`null`)にする(`PlantInput.normalized()`)。
 - **一致の見張り**:`test/domain/plant_rules_consistency_test.dart` が、`firebase/firestore.rules` の文字列を読み、ジャンル・タグ・公開範囲の id、文字数の上限、「新規作成は非公開を強制」「来歴の印はサーバー専用」がアプリと同じかを確かめる。ルールかアプリのどちらかを変えたら、このテストが落ちる。
+- ユーザー情報の検証は `validateUserProfile`(実装済み・#72)。条件は `validUserFields`(権限ルール)と同じ:表示名は前後の空白を除いて1〜30文字(UTF-16。絵文字は2)、年齢区分は必須(`13-17` / `18+`)、好きなジャンルは9つまで、都道府県は未設定または `01`〜`47`、**公開の説明の確認は必須**(REQ-049)。ルールの値(年齢区分・都道府県・通知の種類・表示名の上限)は `plant_rules_consistency_test.dart` が突き合わせる。
 - 記録(`PlantLog`)の検証は `validatePlantLog`(実装済み・#64)。条件は `validLog`(権限ルール)と同じ:メモは500文字まで(UTF-16。種類がメモのときは必須)、日時は今日以前、種類が段階のときは段階が必須・健康状態のときは健康状態が必須・ほかの種類では付けられない。段階の値(8つ)と種類の値(7つ)は `PlantStage`・`PlantLogType` の id で、`plant_rules_consistency_test.dart` がルールと突き合わせる。
 
 ## 6. エラー処理

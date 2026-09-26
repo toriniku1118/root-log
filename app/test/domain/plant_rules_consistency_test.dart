@@ -10,6 +10,8 @@ import 'package:rootlog/domain/plant_input.dart';
 import 'package:rootlog/domain/plant_log.dart';
 import 'package:rootlog/domain/plant_stage.dart';
 import 'package:rootlog/domain/plant_tag.dart';
+import 'package:rootlog/domain/prefecture.dart';
+import 'package:rootlog/domain/user_profile.dart';
 
 late final String rules;
 
@@ -69,6 +71,30 @@ void main() {
 
   test('記録のメモの上限がルールと同じ', () {
     expect(PlantLogLimits.note, limit(RegExp(r"optStr\('note', (\d+)\)")));
+  });
+
+  test('年齢区分の id がルールの ageBand と同じ', () {
+    final fromRules = quotedList(RegExp(r'data\(\)\.ageBand in \[(.*?)\]'));
+    expect(AgeBand.values.map((a) => a.id).toList(), fromRules);
+  });
+
+  test('都道府県のコードがルールの prefectures() と同じ(未設定の空 + 01〜47)', () {
+    final fromRules = quotedList(RegExp(r'function prefectures\(\)\s*\{.*?return\s*\[(.*?)\];', dotAll: true));
+    expect(['', ...prefectures.map((p) => p.code)], fromRules);
+  });
+
+  test('通知の種類がルールの notify と同じ(順番も含めて)', () {
+    final fromRules = quotedList(RegExp(r'data\(\)\.notify\.keys\(\)\.hasOnly\(\[(.*?)\]\)'));
+    expect(NotifySettings.keys, fromRules);
+  });
+
+  test('表示名の上限・好きなジャンルの個数の上限がルールと同じ', () {
+    expect(ProfileLimits.displayName, limit(RegExp(r'isStr\(data\(\)\.displayName, 1, (\d+)\)')));
+    expect(ProfileLimits.genresMax, limit(RegExp(r'data\(\)\.genres is list && data\(\)\.genres\.size\(\) <= (\d+)')));
+  });
+
+  test('公開の説明を確認した日時(publishAckAt)は、ルールがサーバー時刻でだけ書けるようにしている', () {
+    expect(rules, contains('data().publishAckAt == request.time'));
   });
 
   test('購入価格の範囲(0〜上限の整数)がルールと同じ', () {
