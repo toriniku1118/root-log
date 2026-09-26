@@ -1,22 +1,30 @@
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/plant_repository.dart';
+import '../../domain/plant.dart';
 import '../../domain/plant_genre.dart';
 import '../../domain/plant_input.dart';
 import '../../domain/plant_tag.dart';
 import '../../providers.dart';
 
-/// 株を追加する画面(SCR-05)。保存される株は、初期公開・写真のみ(2026-09-26。オプトアウト)。共有設定はここでは出さない(SCR-09)。
+/// 株を追加・編集する画面(SCR-05)。[plant] を渡すと編集(削除もここから)、なければ追加。
 ///
-/// 入力の条件は `validatePlantInput`(権限ルールと同じ)。エラーは項目の下に日本語で出す。
-class AddPlantScreen extends ConsumerStatefulWidget {
-  const AddPlantScreen({super.key});
+/// 追加した株は、初期公開・写真のみ(2026-09-26。オプトアウト)。編集では、共有設定・作成日時・健康状態は変えない。
+/// 共有設定はここでは出さない(SCR-09)。入力の条件は `validatePlantInput`(権限ルールと同じ)。
+/// エラーは項目の下に日本語で出す。
+class PlantFormScreen extends ConsumerStatefulWidget {
+  const PlantFormScreen({super.key, this.plant});
+
+  /// 編集する株。null なら追加。
+  final Plant? plant;
 
   @override
-  ConsumerState<AddPlantScreen> createState() => _AddPlantScreenState();
+  ConsumerState<PlantFormScreen> createState() => _PlantFormScreenState();
 }
 
-class _AddPlantScreenState extends ConsumerState<AddPlantScreen> {
+class _PlantFormScreenState extends ConsumerState<PlantFormScreen> {
   final _name = TextEditingController();
   final _variety = TextEditingController();
   final _source = TextEditingController();
@@ -31,11 +39,27 @@ class _AddPlantScreenState extends ConsumerState<AddPlantScreen> {
   Map<PlantField, String> _errors = {};
   bool _saving = false;
 
+  /// 開いたときの入力の状態。これと違えば「変更あり」(戻るときの確認に使う)。
+  late final List<Object?> _initialSnapshot;
+
   List<TextEditingController> get _controllers => [_name, _variety, _source, _location, _potSize, _price];
 
   @override
   void initState() {
     super.initState();
+    final p = widget.plant;
+    if (p != null) {
+      _name.text = p.name;
+      _variety.text = p.variety ?? '';
+      _source.text = p.source ?? '';
+      _location.text = p.locationName ?? '';
+      _potSize.text = p.potSize ?? '';
+      _price.text = p.purchasePrice?.toString() ?? '';
+      _genres = {...p.genres};
+      _tags = {...p.tags};
+      _acquiredAt = p.acquiredAt;
+    }
+    _initialSnapshot = _snapshot();
     // 入力のたびに画面を作り直す(戻るときの確認が、最新の入力の有無で決まるようにする)
     for (final c in _controllers) {
       c.addListener(_onTextChanged);
@@ -54,12 +78,15 @@ class _AddPlantScreenState extends ConsumerState<AddPlantScreen> {
     super.dispose();
   }
 
-  /// 何か入力したか(戻るときの確認に使う)。初期状態と違えば「入力あり」。
-  bool get _hasContent =>
-      _controllers.any((c) => c.text.trim().isNotEmpty) ||
-      _acquiredAt != null ||
-      _tags.isNotEmpty ||
-      !(_genres.length == 1 && _genres.contains(defaultPlantGenre));
+  List<Object?> _snapshot() => [
+        for (final c in _controllers) c.text.trim(),
+        _acquiredAt,
+        ([..._genres.map((g) => g.id)]..sort()).join(','),
+        ([..._tags.map((t) => t.id)]..sort()).join(','),
+      ];
+
+  /// 開いたときから変えたか(戻るときの確認に使う)。
+  bool get _isDirty => !listEquals(_snapshot(), _initialSnapshot);
 
   void _clearError(PlantField field) {
     if (_errors.containsKey(field)) setState(() => _errors = {..._errors}..remove(field));
@@ -109,8 +136,19 @@ class _AddPlantScreenState extends ConsumerState<AddPlantScreen> {
     });
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
+    final repo = ref.read(plantRepositoryProvider);
+    final editing = widget.plant;
     try {
-      await ref.read(plantRepositoryProvider).add(input);
+      if (editing == null) {
+        await repo.add(input);
+      } else {
+        await repo.update(editing.id, input);
+      }
+    } on PlantNotFoundException {
+      // 編集中に、株がなくなっていた
+      navigator.pop();
+      messenger.showSnackBar(const SnackBar(content: Text('株が見つかりません')));
+      return;
     } on PlantValidationException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -125,7 +163,37 @@ class _AddPlantScreenState extends ConsumerState<AddPlantScreen> {
       return;
     }
     navigator.pop();
-    messenger.showSnackBar(const SnackBar(content: Text('追加しました')));
+    messenger.showSnackBar(SnackBar(content: Text(editing == null ? '追加しました' : '更新しました')));
+  }
+
+  Future<void> _delete() async {
+    final plant = widget.plant;
+    if (plant == null || _saving) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('株を削除しますか?'),
+        content: const Text('写真・記録もあわせて消えます。元に戻せません。'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('やめる')),
+          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('削除する')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _saving = true);
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    try {
+      await ref.read(plantRepositoryProvider).delete(plant.id);
+    } on Object {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      messenger.showSnackBar(const SnackBar(content: Text('削除できませんでした。もう一度試してください')));
+      return;
+    }
+    navigator.pop();
+    messenger.showSnackBar(const SnackBar(content: Text('削除しました')));
   }
 
   Future<void> _confirmDiscard() async {
@@ -150,21 +218,23 @@ class _AddPlantScreenState extends ConsumerState<AddPlantScreen> {
     final locations = ({for (final p in plants) ?p.locationName}.toList())..sort();
 
     return PopScope(
-      canPop: !_hasContent || _saving,
+      canPop: !_isDirty || _saving,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _confirmDiscard();
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text('株を追加')),
+        appBar: AppBar(title: Text(widget.plant == null ? '株を追加' : '株を編集')),
         body: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           children: [
-            Text(
-              '初期設定では、この株の写真だけが公開されます(公開の説明を確認したあとから、他の人に見えます)。'
-              '株ごとに、いつでも非公開にできます。入手先・置き場所・購入価格は公開されません。',
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 16),
+            if (widget.plant == null) ...[
+              Text(
+                '初期設定では、この株の写真だけが公開されます(公開の説明を確認したあとから、他の人に見えます)。'
+                '株ごとに、いつでも非公開にできます。入手先・置き場所・購入価格は公開されません。',
+                style: theme.textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 16),
+            ],
             TextField(
               key: const Key('field-name'),
               controller: _name,
@@ -301,6 +371,14 @@ class _AddPlantScreenState extends ConsumerState<AddPlantScreen> {
               onPressed: _saving ? null : _save,
               child: const Text('保存'),
             ),
+            if (widget.plant != null) ...[
+              const SizedBox(height: 16),
+              OutlinedButton(
+                key: const Key('delete'),
+                onPressed: _saving ? null : _delete,
+                child: const Text('この株を削除'),
+              ),
+            ],
           ],
         ),
       ),
