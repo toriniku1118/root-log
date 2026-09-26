@@ -87,7 +87,7 @@ RootLog の開発の進め方。`CLAUDE.md` の「開発の進め方」の詳細
 - **マージの承認は不要**。次を確認できたら、自分でマージしてよい。
   - 設計書を更新した(または「影響なし」と issue に書いてある)。
   - 該当する段階のテスト(単体・結合・システム)が全件合格している。ローカルで確かめた項目は、その方法と結果を書く。実機での確認が必要な項目(2章)は、実機で確かめた結果を書く。
-  - `firebase/` を変えた場合:`npm test` と型チェックが全件合格している。
+  - `firebase/` を変えた場合:`npm test`・`cd functions && npm test`・型チェック・`npm run test:integration`(サーバー処理を変えたとき)が全件合格している。
   - 権限ルールを変えた場合:「見えてはいけないものが見えない」テストを追加してある。
   - 秘密情報(APIキー・秘密鍵・`google-services.json`・`GoogleService-Info.plist`)が含まれていない。
 - マージ方法は squash マージ(`gh pr merge --squash --delete-branch`)。履歴を1 issue = 1 コミットにそろえる。

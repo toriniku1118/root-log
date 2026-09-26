@@ -9,7 +9,8 @@
   "scripts": {
     "build": "tsc",
     "lint": "tsc --noEmit",
-    "test": "rm -rf .test-build && tsc -p tsconfig.test.json && node --test \".test-build/**/*.test.js\""
+    "test": "rm -rf .test-build && tsc -p tsconfig.test.json && node --test \".test-build/**/*.test.js\"",
+    "test:integration": "rm -rf .integration-build && tsc -p tsconfig.integration.json && node --test --test-concurrency=1 \".integration-build/**/*.test.js\""
   },
   "dependencies": {
     "exif-reader": "^2.0.0",

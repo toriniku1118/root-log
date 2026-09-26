@@ -2,6 +2,7 @@ node_modules/
 .claude/worktrees/
 firebase/functions/lib/
 firebase/functions/.test-build/
+firebase/functions/.integration-build/
 *.log
 .firebaserc
 firebase-debug.log*

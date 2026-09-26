@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "firebase emulators:exec --only firestore,storage --project rootlog-rules-test \"vitest run\"",
+    "test:integration": "(cd functions && npm run build) && firebase emulators:exec --only auth,firestore,storage,functions --project demo-rootlog-int \"cd functions && npm run test:integration\"",
     "test:watch": "firebase emulators:exec --only firestore,storage --project rootlog-rules-test \"vitest\""
   },
   "devDependencies": {

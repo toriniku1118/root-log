@@ -37,7 +37,7 @@
 | 権限ルール(Firestore) | 本人以外が読めない・書けない、初期公開で作れる、公開の説明の確認日時を偽れない・変えられない(#58)、課金状態・年齢区分・来歴の印・写真の記録・公開用データをアプリから書けない、記録時刻を偽れない、名前の文字数(絵文字は2文字分)、購入価格の範囲、健康状態の値と記録(種類 health) | `firebase/tests/firestore.rules.test.ts`(エミュレーター) | 済み(44件) |
 | 権限ルール(Storage) | 他人の場所にアップロードできない、画像以外は不可、撮影元・株の指定が必須、元画像は本人も読めない、処理済みの写真は本人だけ、公開写真はログインしている人だけ | `firebase/tests/storage.rules.test.ts`(エミュレーター) | 済み(14件) |
 | 画面 ↔ 保存先(メモリ) | ホームが保存先の変更をその場で反映する、追加して戻ると一覧に出る | `home_screen_test.dart` | 済み |
-| サーバー処理の通し | `uploads/` に保存 → `processUpload` → `photos/` と写真の記録ができ、元画像が消える。来歴の判定。`deletePhoto`(欠落の記録)、`onPlantDeleted`(後片付け)、`deleteAccount` | エミュレーター(Firestore・Storage・Functions)上で、テスト用の画像を使って通す | 未実装(予定) |
+| サーバー処理の通し | `uploads/` に保存 → `processUpload` → `photos/` と写真の記録ができ、元画像が消える。来歴の判定。`deletePhoto`(欠落の記録)、`onPlantDeleted`(後片付け)、`deleteAccount` | エミュレーター(Auth・Firestore・Storage・Functions)上で、テスト用の画像を使って通す(`functions/integration/`。`npm run test:integration`) | 済み(27件。#86。`processUpload`(来歴の判定・位置情報の削除・縮小・元画像の削除・受け付けないもの)、公開用データ(公開の説明の確認前は書き出さない・非公開の項目が出ない・非公開にすると消える)、`deletePhoto`・`onPlantDeleted`・`deleteAccount`(App Check なし・ログインなしは拒否)。購入価格を公開データに混ぜる変更を入れて、テストが失敗することを確認した) |
 | Firestore 版の保存先 ↔ ルール | 作成時に `hasProvenance` を含めない、更新で来歴の印が消えない、時刻がサーバー時刻 | 保存先の実装(順9)のときに、エミュレーターに対するテストを加える | 未実装(予定) |
 
 ### 2.3 システムテスト(外部設計)
@@ -64,8 +64,9 @@
 | 権限ルール(Firestore・Storage) | `docker compose run --rm firebase bash -c "npm install && npm test"` | 79件合格(Firestore 65、Storage 14) |
 | サーバー処理の型チェック | `docker compose run --rm firebase bash -c "cd functions && npm install && npm run build"` | 合格 |
 | 写真の処理(位置情報の削除など) | `docker compose run --rm firebase bash -c "cd functions && npm install && npm test"` | 43件合格(写真の処理 6、公開用データ 13、来歴の判定 24) |
+| サーバー処理の通し(エミュレーター) | `docker compose run --rm firebase bash -c "npm install && (cd functions && npm install) && npm run test:integration"` | 27件合格(`processUpload` 10、公開用データ 8、削除 9。約1分) |
 
-- 権限ルール(`firebase/`)・サーバー処理(`functions/`)を変えたら、上の3つ(権限ルール・型チェック・写真の処理)を実行する。
+- 権限ルール(`firebase/`)・サーバー処理(`functions/`)を変えたら、上の4つ(権限ルール・型チェック・写真の処理・サーバー処理の通し)を実行する。
 - `sharp` などの写真処理のライブラリを更新したら、必ず写真の処理のテストで位置情報が消えることを確認する。
 - 件数が増えたら、この表を更新する。
 
@@ -103,6 +104,9 @@
 | `firebase/functions/src/image.test.ts` | 6 | REQ-016、020 |
 | `firebase/functions/src/publicPlant.test.ts` | 13 | REQ-007、028、047、048 |
 | `firebase/functions/src/provenance.test.ts` | 24 | REQ-017、018 |
+| `firebase/functions/integration/processUpload.test.ts` | 10 | REQ-016、017、018、020 |
+| `firebase/functions/integration/publicPlants.test.ts` | 8 | REQ-028、029、035、049 |
+| `firebase/functions/integration/deletion.test.ts` | 9 | REQ-019、034、039 |
 
 ## 5. 4か月目の判定に使う数字(受入・FN-25)
 判定点は `docs/project/evaluation.md` 5章。ステップ1の判定の基準は「自分が続けている」「テスターの半数以上が4週後も週1回以上撮影」「テスターが来歴記録を『取引で見せたい』と答える」「セキュリティのフェーズ1必須項目を満たす」。
@@ -163,10 +167,10 @@
 | 013 | SCR-06、FN-08 | 8章 | 結合:Storage ルール(撮影元は `camera` / `gallery` 以外不可) | システム:「来歴にならない」の表示。受入:実機 |
 | 014 | SCR-06、FN-09 | — | (後回し) | (後回し。戻すときに、システム:重ね表示。受入:実機) |
 | 015 | SCR-06、FN-10 | — | なし(未実装) | システム:比較表示 |
-| 016 | SCR-06 | 8・10章 | 単体:`image.test`(EXIF・GPS・機種名が残らない)。結合:Storage ルール(元画像は本人も読めない・上書き削除不可) | 結合:エミュレーターで `processUpload` を通す |
-| 017 | SCR-06、FN-11 | 10章 | ルール:アプリから写真の記録を作れない・書き換えられない | 単体(済み):`provenance.test`(#84)。結合:`processUpload` の通し。受入:実機で撮影時刻とタイムゾーン |
+| 016 | SCR-06 | 8・10章 | 単体:`image.test`(EXIF・GPS・機種名が残らない)。結合:Storage ルール(元画像は本人も読めない・上書き削除不可) | 結合(済み):`integration/processUpload.test`(EXIF・GPS・機種名が処理後の画像と公開用の画像に残らない・元画像が消える・受け付けないものは記録を作らず元画像も消す。#86) |
+| 017 | SCR-06、FN-11 | 10章 | ルール:アプリから写真の記録を作れない・書き換えられない | 単体(済み):`provenance.test`(#84)。結合(済み):`integration/processUpload.test`(来歴つき・gallery・撮影時刻なし・離れている・duplicate。受信時刻はサーバーの時刻。#86)。受入:実機で撮影時刻とタイムゾーン |
 | 018 | SCR-04、SCR-08、FN-11 | 8章 4、10章 | 単体(済み):`photo_provenance_test`(文言・受信時刻の書式・「この日時までに」を来歴にならない写真に使わない・理由と撮影元の id がサーバー(`index.ts`・`storage.rules`)と同じ)、`plant_photo_repository_test`(来歴の印を写真から数え直す・編集で消えない)。システム(済み):`plant_photos_test`(来歴つきの印と文言・4つの理由ごとの文言・ホームの「来歴あり」)。「確認中」は未 |
-| 019 | SCR-08、FN-12 | 10章 | ルール:`systemLogs` は他人に読めない・アプリから書けない。単体(済み):`plant_photo_repository_test`(削除で数が増える・存在しない写真はエラーで数も増えない・株の削除で消える) | 結合:`deletePhoto`(欠落の記録)は Firestore 接続のとき。システム(済み):`plant_photos_test`(拡大・確認・「やめる」で残る・削除して「削除された写真があります(1枚)」・ホームの来歴あり消える) |
+| 019 | SCR-08、FN-12 | 10章 | ルール:`systemLogs` は他人に読めない・アプリから書けない。単体(済み):`plant_photo_repository_test`(削除で数が増える・存在しない写真はエラーで数も増えない・株の削除で消える) | 結合(済み):`integration/deletion.test`(`deletePhoto`:写真・公開用のコピーが消え、欠落の記録(`systemLogs`)が残り、来歴の印を数え直す。他人の写真は消せない・ログインなし・App Check なしは拒否。#86)。システム(済み):`plant_photos_test`(拡大・確認・「やめる」で残る・削除して「削除された写真があります(1枚)」・ホームの来歴あり消える) |
 | 020 | — | 10章 | 単体:`image.test`(長辺の縮小・拡大しない) | 結合:画質の区別を続ける場合、無料/有料で画質が変わる(未決) |
 | 021 | 3.1 | — | (広告の仕組みを入れていないことをレビューで確認) | 広告を入れるステップ2で、撮影から保存までに出ないことを確認 |
 | 022 | FN-14 | Q4 | ルール:水やりの記録を本人が作れる | 単体:前回からの日数は済み(`care_test`。#68)、「いつもの間隔」は未(Q4)。システム:詳細の1タップ(`plant_detail_screen_test`。#65)・ホームの長押しと取り消し・日数の表示(`home_care_test`。#68)は済み(巡回モードは後回し) |
@@ -175,14 +179,14 @@
 | 025 | SCR-08、FN-15 | — | 単体(済み):`story_test`(日付ごとのまとめ・並び・健康状態の前の値)。 | システム(済み):`plant_detail_screen_test`(時系列・0件の案内)、`plant_photos_test`(写真の行・記録と混ざる順・日付の見出し。#80)。画像そのものの表示は未 |
 | 026 | SCR-08、FN-16 | — | (後回し) | (後回し。戻すときに、システム:再生) |
 | 027 | SCR-07、FN-17 | Q6 | (後回し) | (後回し。戻すときに、システム:置き場所の順・撮影→水やり→次へ・完了画面。受入:実機(撮影)) |
-| 028 | SCR-09、FN-18 | 3.2、4.2 | ルール:最初から公開状態で作れる(初期公開)・後から公開/非公開に変更できる(本人のみ)。単体:更新で共有設定が変わらない | システム(済み):`plant_visibility_screen_test`(初期・選択・保存・戻る確認・株がなくなったとき)。単体(済み):`plant_repository_test`(`setVisibility`) |
-| 049 | SCR-01、FN-18 | 3.2、4.2 | ルール:公開の説明の確認日時(`publishAckAt`)をサーバー時刻以外で書けない・後から変えられない・消せない・他人のものを書けない。関数:確認前は書き出さない・確認後に書き出す | 単体(済み):`user_profile_test`・`user_repository_test`(確認は必須・確認の日時は保存先の時刻で、後から変わらない)。システム(済み):`onboarding_test`(確認するまでサインインできない・説明の文・未確認で始まったときの確認・保存された確認の日時) |
-| 029 | SCR-09 | — | 単体(済み):`visibility_text_test`(範囲ごとの説明。サーバーの `publicPlant.ts` が書き出す項目との一致を、ソースを読んで固定) | システム(済み):`plant_visibility_screen_test`(選ぶたびに説明が変わる・非公開・注記) |
+| 028 | SCR-09、FN-18 | 3.2、4.2 | ルール:最初から公開状態で作れる(初期公開)・後から公開/非公開に変更できる(本人のみ)。単体:更新で共有設定が変わらない。結合(済み):`integration/publicPlants.test`(範囲ごとの出し分け・非公開にすると公開用データと画像が消える・戻すと書き出される。#86) | システム(済み):`plant_visibility_screen_test`(初期・選択・保存・戻る確認・株がなくなったとき)。単体(済み):`plant_repository_test`(`setVisibility`) |
+| 049 | SCR-01、FN-18 | 3.2、4.2 | ルール:公開の説明の確認日時(`publishAckAt`)をサーバー時刻以外で書けない・後から変えられない・消せない・他人のものを書けない。関数:確認前は書き出さない・確認後に書き出す。結合(済み):`integration/publicPlants.test`(確認前は公開でも書き出さず写真もコピーしない・確認するとまとめて書き出す。#86) | 単体(済み):`user_profile_test`・`user_repository_test`(確認は必須・確認の日時は保存先の時刻で、後から変わらない)。システム(済み):`onboarding_test`(確認するまでサインインできない・説明の文・未確認で始まったときの確認・保存された確認の日時) |
+| 029 | SCR-09 | — | 単体(済み):`visibility_text_test`(範囲ごとの説明。サーバーの `publicPlant.ts` が書き出す項目との一致を、ソースを読んで固定)。結合(済み):`integration/publicPlants.test`(書き出された項目の一覧が一致・購入価格・置き場所・号数・メモ・健康状態が出ない) | システム(済み):`plant_visibility_screen_test`(選ぶたびに説明が変わる・非公開・注記) |
 | 030 | SCR-10、FN-19 | 9章 | なし(未実装) | システム:選ばなければオフ。受入:実機 |
 | 031 | SCR-10、SCR-11、FN-20 | 3.4、9章、Q3 | ルール:通知設定にオン/オフ以外の値を入れられない | 単体:1日1回の調整。受入:実機 |
 | 032 | SCR-11、FN-21 | 9章 | なし(未実装) | 単体:間隔の計算。受入:実機 |
 | 033 | SCR-11、FN-22、FN-24 | 3.4 | 単体(済み):`user_repository_test`(通知の保存・変わるのは通知と更新日時だけ・未登録はエラー) | システム(済み):`settings_test`(初期オフ・注記・切り替えの保存と開き直し・サインアウト)。通知の実際の動き:実機 |
-| 034 | SCR-12、FN-23 | 10章 | 単体(済み):`user_repository_test`(削除・やり直すと初回から)・`plant_log_repository_test`(全部削除)。`deleteAccount`(サーバー)のテストは未実装 | システム(済み):`settings_test`(説明・二段階の確認・やめる・削除でようこそに戻る・株と記録が消える・失敗時)。結合:エミュレーターで `deleteAccount`(Firebase 接続のとき) |
+| 034 | SCR-12、FN-23 | 10章 | 単体(済み):`user_repository_test`(削除・やり直すと初回から)・`plant_log_repository_test`(全部削除)。結合(済み):`integration/deletion.test`(`deleteAccount`:本人のデータ・画像・公開用データ・Auth のユーザーが消え、ほかの利用者は消えない。App Check なし・ログインなしは拒否。#86) | システム(済み):`settings_test`(説明・二段階の確認・やめる・削除でようこそに戻る・株と記録が消える・失敗時)。結合:エミュレーターで `deleteAccount`(Firebase 接続のとき) |
 | 035 | 5章 | 3.1 | ルール:Firestore 65件・Storage 14件(本人以外が読めない、公開用データを直接書けない、定義していない場所に書けない、など) | 8章 |
 | 036 | 5章 | 3.1 | ルール:アプリから写真の記録・`systemLogs` を作れない・書き換えられない | — |
 | 037 | 5章 | 3.1 | ルール:課金状態・年齢区分・来歴の印を変更できない | — |
