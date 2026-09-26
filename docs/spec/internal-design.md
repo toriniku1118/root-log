@@ -29,7 +29,7 @@ domain/    株・ジャンル・タグ・入力の検証。Flutter や Firebase 
 | `data/plant_repository.dart` | `PlantRepository`(差し替え口)、`InMemoryPlantRepository`、`generatePlantId`、`PlantNotFoundException` | 株の保存・取得。今はメモリ上 |
 | `providers.dart` | `plantRepositoryProvider`、`plantsProvider` | 保存先の提供と、一覧の購読 |
 | `features/home/` | `HomeScreen`、`groupPlantsByLocation` | ホーム(SCR-04)と、置き場所ごとのまとめ |
-| `features/plants/` | `PlantDetailScreen`(株の詳細。SCR-08。#65)・`story.dart`(栽培ストーリーの組み立て。日付ごとのまとめ・健康状態の前の値)・`log_dialog.dart`(記録の入力ダイアログ)・`PlantFormScreen` | 株を追加・編集・削除する画面(SCR-05。追加=#17、編集・削除=#62)。株を渡すと編集。開いたときの入力の状態と比べて、戻るときの確認を決める |
+| `features/plants/` | `PlantDetailScreen`(株の詳細。SCR-08。#65)・`story.dart`(栽培ストーリーの組み立て。日付ごとのまとめ・健康状態の前の値)・`care.dart`(前回の水やりからの日数の計算と文言。暦の日付の差。株ごとの最後の水やりは `lastWateredProvider`)・`log_dialog.dart`(記録の入力ダイアログ)・`PlantFormScreen` | 株を追加・編集・削除する画面(SCR-05。追加=#17、編集・削除=#62)。株を渡すと編集。開いたときの入力の状態と比べて、戻るときの確認を決める |
 
 - 新しい機能(記録・写真・設定・通知)も、同じ形で足す:`domain/` に形と検証、`data/` に差し替え口と実装、`features/` に画面、`providers.dart` で結ぶ。
 - 画面は、保存先が返す例外([6章](#6-エラー処理))を、日本語のメッセージにして出す。
