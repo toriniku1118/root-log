@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'constants.dart';
-import 'features/home/home_screen.dart';
+import 'features/onboarding/app_gate.dart';
 
 class RootLogApp extends StatelessWidget {
   const RootLogApp({super.key});
@@ -22,7 +22,7 @@ class RootLogApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: const HomeScreen(),
+      home: const AppGate(), // サインイン → 初回の設定 → ホーム
     );
   }
 }
